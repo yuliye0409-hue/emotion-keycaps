@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e7">
+  <title>情绪键帽 · 桌宠小屋</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./motion.js"></script>
+  <script defer src="./art.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header><div class="brand"><span aria-hidden="true">✿</span><b>情绪键帽</b><small>KEYCAP CLUB</small></div><div class="header-tools"><button id="sound-toggle" class="sound" type="button" aria-pressed="false" aria-label="互动音效" title="互动音效"></button><button id="desktop" class="desktop" type="button">放到桌面 <span aria-hidden="true">↗</span></button></div></header>
+  <main>
+    <section class="home" aria-labelledby="room">
+      <div class="room-label"><div><small id="edition"></small><h1 id="room"></h1></div><div class="room-pet"><strong id="pet-name"></strong><small id="pet-job"></small></div></div>
+      <div class="world" id="world"></div>
+      <div class="under"><p id="message" role="status"></p><div id="actions" class="actions" aria-label="和桌宠互动"></div></div>
+      <div class="office-actions" role="group" aria-label="陪伴互动">
+        <button type="button" data-action="hug">抱一下</button>
+        <button type="button" data-action="calm">一起缓缓</button>
+        <button type="button" data-action="cheer">庆祝一下</button>
+        <button type="button" data-action="break">伸懒腰</button>
+        <button type="button" data-action="concern">听我吐槽</button>
+      </div>
+      <label class="office-toggle"><input type="checkbox" id="office">启用桌宠的办公陪伴提醒</label>
+      <p id="desktop-status" role="status" hidden></p>
+    </section>
+    <aside>
+      <section><h2>键帽住客 <small>01—06</small></h2><div id="roster" class="roster" role="group" aria-label="选择键帽"></div></section>
+      <section><h2>给它换装</h2><label class="setting"><span>名字</span><input id="nickname" maxlength="12" autocomplete="off"></label>
+        <div class="setting"><span id="color-label">颜色</span><div id="colors" class="options" role="group" aria-labelledby="color-label"></div></div>
+        <div class="setting"><span id="face-label">表情</span><div id="faces" class="options" role="group" aria-labelledby="face-label"></div></div>
+        <div class="setting"><span id="kit-label">配件</span><div id="kits" class="options" role="group" aria-labelledby="kit-label"></div></div>
+      </section>
+      <section class="diary"><h2>小日记 <small id="diary-count"></small></h2><ul id="diary"></ul></section>
+    </aside>
+  </main>
+</body>
+</html>
