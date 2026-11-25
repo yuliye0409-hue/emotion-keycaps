@@ -6,15 +6,15 @@
 }
 *{box-sizing:border-box}
 body{margin:0}
-button,input{font:inherit;color:inherit}
+button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
-button:focus-visible,input:focus-visible{outline:3px solid #5b48bd;outline-offset:3px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #5b48bd;outline-offset:3px}
 [hidden]{display:none!important}
 header{height:61px;padding-inline:max(22px,calc((100vw - 1180px)/2));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#fffefa}
 .brand,.header-tools{display:flex;align-items:center;gap:10px}
 .brand>span,.mini-brand{display:grid;place-items:center;width:31px;height:27px;border:2px solid var(--ink);border-radius:6px;background:var(--pink);box-shadow:0 3px var(--ink);font-size:19px;line-height:1;padding-bottom:2px}
 .brand b{font-size:19px}
-.brand small,.room-label small,.diary small,aside h2 small{font:700 11px ui-monospace,Consolas,monospace}
+.brand small,.diary small{font:700 11px ui-monospace,Consolas,monospace}
 .desktop,.sound{height:34px;border:1px solid var(--ink);border-radius:5px;box-shadow:0 2px var(--ink);white-space:nowrap}
 .desktop{padding:0 11px;background:var(--blue);font-weight:750;font-size:13px}
 .desktop:hover,.desktop[data-open]{background:#aecdeb}
@@ -26,10 +26,8 @@ main{max-width:1224px;margin:auto;display:grid;grid-template-columns:minmax(0,1f
 .home{padding:23px 21px 28px;min-width:0}
 .room-label{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
 .room-label h1{font-size:31px;margin:5px 0 0;line-height:1.14}
-.room-label small{color:#5e5665}
-.room-pet{display:grid;gap:4px;text-align:right;overflow-wrap:anywhere}
+.room-pet{text-align:right;overflow-wrap:anywhere}
 .room-pet strong{font-size:15px}
-.room-pet small{font-family:inherit}
 .world{position:relative;aspect-ratio:800/520;background:#c3dffd;overflow:hidden;border:2px solid var(--ink);border-radius:8px;isolation:isolate}
 .room-art,.scene,.night,.room-effect{position:absolute;inset:0;width:100%;height:100%;display:block}
 .night,.room-effect{pointer-events:none}
@@ -73,20 +71,28 @@ main{max-width:1224px;margin:auto;display:grid;grid-template-columns:minmax(0,1f
 aside{padding:24px 17px;border-left:1px solid var(--line);min-width:0;background:#f1eee6}
 aside section+section{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
 h2{font-size:15px;margin:0 0 10px}
-aside h2 small{margin-left:6px;color:#5e5665}
-.roster{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-.roster button{min-width:0;background:#fffdf7;display:grid;justify-items:center;align-content:center;gap:2px;min-height:83px;border:1px solid var(--line);border-radius:6px;padding:4px;font-size:12px;line-height:1.1}
-.roster svg{width:67px;max-width:100%;height:54px;display:block}
-.roster-name{max-width:100%;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
-.roster button:hover,.options button:hover{border-color:var(--ink)}
-.roster button[aria-pressed=true],.options button[aria-pressed=true]{background:#fbe3a9;border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.setting{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:6px;margin-bottom:7px;font-size:12px}
-.setting>span{color:#675f5a}
-.setting input{min-width:0;width:100%;height:32px;border:1px solid var(--line);background:#fffdf7;border-radius:5px;padding:0 8px}
-.options{display:flex;gap:5px;flex-wrap:wrap}
-.options button{min-width:29px;height:30px;padding:0 5px;background:#fffdf7;border:1px solid var(--line);border-radius:5px;font-size:11px;display:grid;place-items:center}
-.options svg{width:20px;height:16px}
-.swatch{width:16px;height:16px;border:1px solid var(--ink);border-radius:50%;background:var(--swatch)}
+.diary small{margin-left:6px;color:#5e5665}
+.workbench{border:2px solid var(--ink);border-radius:12px;background:#fffaef;box-shadow:0 4px var(--ink)}
+.workbench h2{margin:0;padding:11px 12px;border-bottom:2px solid var(--ink);border-radius:9px 9px 0 0;background:#ff9874;font-size:18px;font-weight:850;letter-spacing:.035em}
+.fitting-mat{display:grid;place-items:center;margin:10px 10px 0;min-height:140px;border:1px solid #adab8e;border-radius:7px;background-color:#f6f2db;background-image:radial-gradient(#b5b28f 1px,transparent 1px);background-size:12px 12px}
+.fitting-mat svg{display:block;width:min(100%,174px);height:auto}
+.workbench-settings{display:grid;gap:12px;padding:12px 10px 11px}
+.setting{display:grid;gap:6px;font-size:12px}
+.setting>span{font-weight:750}
+.setting-inline{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px}
+.setting input,.setting select{min-width:0;width:100%;height:34px;border:1px solid #9e9687;background:#fffdf7;border-radius:5px;padding:0 8px}
+.room-setting{padding-top:10px;border-top:1px solid var(--line)}
+.options{display:grid;gap:4px}
+.palette{grid-template-columns:repeat(7,minmax(0,1fr))}
+.expressions{grid-template-columns:repeat(5,minmax(0,1fr))}
+.accessories{grid-template-columns:repeat(3,minmax(0,1fr))}
+.options button{min-width:0;min-height:33px;padding:3px 1px;background:#fffdf7;border:1px solid #b4aa99;border-radius:6px;font-size:11px;line-height:1.2;display:grid;place-items:center}
+.options button:hover{border-color:var(--ink);background:#fff1cf}
+.options button[aria-pressed=true]{background:#f0efba;border-color:var(--ink);box-shadow:0 2px var(--ink)}
+.palette button[aria-pressed=true]{background:#fffdf7}
+.expressions button{min-height:47px;gap:1px}
+.expressions svg{width:25px;height:24px;max-width:100%}
+.swatch{display:block;width:min(16px,90%);aspect-ratio:1;border:1px solid var(--ink);border-radius:5px;background:var(--swatch)}
 .diary ul{margin:0;padding:0;display:grid;gap:5px;list-style:none}
 .diary li{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
 .diary li::before{content:"✧";margin-right:6px;color:#885196}

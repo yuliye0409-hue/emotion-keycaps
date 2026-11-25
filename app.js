@@ -1,18 +1,16 @@
-const pets=[
- {id:'bean',name:'咕咕',job:'复习桌搭子',room:'复习桌',scene:'study',copy:'等你翻完今天最后一页，它会把书签叼过来。',key:'TAB',color:'#f2bd58',shape:'round',face:'sleepy',accessory:'scarf'},
- {id:'pin',name:'别针',job:'工位实习生',room:'开放工位',scene:'office',copy:'看见消息就想说“收到”，喝水时也带着工牌。',key:'ESC',color:'#70c1d9',shape:'square',face:'dot',accessory:'badge'},
- {id:'echo',name:'回声',job:'夜班程序员',room:'夜间终端',scene:'code',copy:'住在蓝紫色终端里的键帽，报错时先眨眨眼。',key:'DEL',color:'#ad9ae9',shape:'wide',face:'flat',accessory:'antenna'},
- {id:'petal',name:'花花',job:'拼贴设计师',room:'灵感工作室',scene:'studio',copy:'把色卡当宝物。卡住的时候，它会先做个鬼脸。',key:'SHIFT',color:'#ed8f93',shape:'petal',face:'wink',accessory:'patch'},
- {id:'stamp',name:'小章',job:'运营小管家',room:'待办桌',scene:'admin',copy:'纸堆再乱，也会先给每件事盖个小章。',key:'ENTER',color:'#7fb07f',shape:'step',face:'dot',accessory:'stamp'},
- {id:'nap',name:'团团',job:'自由职业者',room:'周末窗边',scene:'weekend',copy:'今天的待办只有三件：晒太阳、喝水、不加班。',key:'END',color:'#e19a78',shape:'pill',face:'happy',accessory:'none'}
+const rooms=[
+ {id:'bean',room:'复习桌',scene:'study',copy:'等你翻完今天最后一页，它会把书签叼过来。'},
+ {id:'pin',room:'开放工位',scene:'office',copy:'消息先放一会儿，咔粒等你喝口水。'},
+ {id:'echo',room:'夜间终端',scene:'code',copy:'蓝紫色终端亮着，咔粒朝你眨了眨眼。'},
+ {id:'petal',room:'灵感工作室',scene:'studio',copy:'把色卡当宝物。卡住的时候，它会先做个鬼脸。'},
+ {id:'stamp',room:'待办桌',scene:'admin',copy:'纸堆再乱，也会先给每件事盖个小章。'},
+ {id:'nap',room:'周末窗边',scene:'weekend',copy:'今天的待办只有三件：晒太阳、喝水、不加班。'}
 ];
-const colors=[['#f2bd58','杏黄'],['#70c1d9','天蓝'],['#ad9ae9','芋紫'],['#ed8f93','珊瑚'],['#7fb07f','苔绿'],['#e19a78','陶橘']];
-const faces=[['dot','圆眼'],['sleepy','困困'],['flat','半睁'],['wink','眨眼'],['happy','笑脸']];
-const kits=[['none','无'],['scarf','围巾'],['badge','工牌'],['antenna','天线'],['patch','色卡'],['stamp','印章']];
+const {character,colors,faces,kits,keyLegend}=KeycapArt;
 const $=id=>document.getElementById(id);
 const replies={
  bean:{poke:'啊，书签夹哪页了？',water:'咕咚咕咚，续上这口。',sleep:'今天翻到这里，晚安。',move:'绕着笔记本跑一圈！',bonk:'轻一点啦，帽沿敲歪了。'},
- pin:{poke:'收到！咦，是你呀。',water:'补水完成，继续实习。',sleep:'我只眯五分钟……',move:'冲刺去茶水间！',bonk:'工牌都被敲晃了。'},
+ pin:{poke:'收到！咦，是你呀。',water:'补水完成。你也喝一口？',sleep:'我只眯五分钟……',move:'冲刺去茶水间！',bonk:'咔！帽沿都晃了。'},
  echo:{poke:'嗯？刚才哪个报错？',water:'保存好了，继续喝水。',sleep:'终端休眠中……',move:'跑一遍测试！',bonk:'敲我不算修好 bug。'},
  petal:{poke:'嘿，灵感被你戳出来了！',water:'颜色都喝饱啦。',sleep:'色卡收好了，明天再贴。',move:'桌面热身舞开始！',bonk:'这一稿不接受暴力修改。'},
  stamp:{poke:'有事请排队，一个一个来。',water:'流程里也要安排喝水。',sleep:'待办已暂停，晚安。',move:'整理三张纸，出发！',bonk:'章印盖歪啦！'},
@@ -75,45 +73,38 @@ const officeReplies={
 const entries={poke:'戳了戳帽沿。',water:'喝了一口水。',sleep:'蜷在小窝里打盹。',wake:'醒来伸了个懒腰。',move:'跑了几步。',bonk:'帽沿被轻轻按了一下。',wave:'打了个招呼。',hug:'抱了一下。',calm:'一起做了一次深呼吸。',cheer:'为一件小事庆祝。',break:'伸了个懒腰。',concern:'举了一下暂停牌。'};
 const keyMap={Space:'move',KeyH:'wave',KeyW:'water',KeyS:'sleep',KeyB:'bonk',KeyE:'special'};
 const storeKey='keycap-club-2d-v2';
-let state={active:0,sound:false,office:false,profiles:{}};
+const state={active:0,sound:false,office:false,desktopKeys:true,outfit:{},rooms:{}};
 try {
  const raw=JSON.parse(localStorage.getItem(storeKey)||'null');
  if(raw&&typeof raw==='object') {
-  if(Number.isInteger(raw.active)&&pets[raw.active]) state.active=raw.active;
+  if(Number.isInteger(raw.active)&&rooms[raw.active]) state.active=raw.active;
   state.sound=raw.sound===true;
   state.office=raw.office===true;
-  for(const p of pets) {
-   const saved=raw.profiles?.[p.id];
+  state.desktopKeys=raw.desktopKeys!==false;
+  const outfit=raw.outfit??raw.profiles?.[rooms[state.active].id];
+  if(typeof outfit?.name==='string') state.outfit.name=outfit.name.slice(0,12);
+  for(const [key,options] of [['color',colors],['face',faces],['accessory',kits]]) {
+   if(options.some(([value])=>value===outfit?.[key])) state.outfit[key]=outfit[key];
+  }
+  for(const room of rooms) {
+   const saved=(raw.rooms??raw.profiles)?.[room.id];
    if(!saved||typeof saved!=='object') continue;
-   const clean={log:Array.isArray(saved.log)?saved.log.filter(x=>Object.hasOwn(entries,x)||x==='special').slice(0,4):[],found:saved.found===true};
-   if(typeof saved.name==='string') clean.name=saved.name.slice(0,12);
-   for(const [k,opts] of [['color',colors],['face',faces],['accessory',kits]]) {
-    if(opts.some(([v])=>v===saved[k])) clean[k]=saved[k];
-   }
-   state.profiles[p.id]=clean;
+   state.rooms[room.id]={log:Array.isArray(saved.log)?saved.log.filter(x=>Object.hasOwn(entries,x)||x==='special').slice(0,4):[],found:saved.found===true};
   }
  }
 } catch { /* Storage can be disabled; the live session still works. */ }
 let active=state.active,action='idle',timer,audio,desktopPending=false;
 let started=performance.now(),frameTime=0,visiblePet;
+let currentKey=character.key,keyTimer;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-const profile=p=>state.profiles[p.id]??={log:[],found:false};
-const look=()=>{const base=pets[active],prefs=profile(base);return {...base,...prefs,name:prefs.name?.trim()||base.name}};
+const roomHistory=()=>state.rooms[rooms[active].id]??={log:[],found:false};
+const look=()=>({...character,...state.outfit,name:state.outfit.name?.trim()||character.name});
 function persist(){try{localStorage.setItem(storeKey,JSON.stringify(state))}catch{/* Use in-memory state. */}}
 const drawnIcon=path=>'<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>';
 const icon=id=>drawnIcon(icons[id]);
-function faceMark(id){
- return ({
-  sleepy:'<path d="M3 6q3 4 6 0m2 0q3 4 6 0"/>',
-  flat:'<path d="M3 5h5m4 0h5"/><circle cx="6" cy="7" r="1"/><circle cx="14" cy="7" r="1"/>',
-  wink:'<circle cx="6" cy="6" r="1.5" fill="currentColor"/><path d="M11 7q3-4 6 0m-8 3q1 2 3 0"/>',
-  happy:'<path d="M3 7q3-4 6 0m2 0q3-4 6 0m-9 3q2 4 4 0"/>',
-  dot:'<circle cx="6" cy="6" r="1.2" fill="currentColor"/><circle cx="14" cy="6" r="1.2" fill="currentColor"/><path d="M8 10q2 2 4 0"/>'
- })[id];
-}
 function choices(items,type){
- return items.map(([v,n])=>'<button class="choice" type="button" data-type="'+type+'" data-value="'+v+'" aria-label="'+n+'" title="'+n+'">'+
-  (type==='color'?'<i class="swatch" style="--swatch:'+v+'"></i>':type==='face'?'<svg viewBox="0 0 20 15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">'+faceMark(v)+'</svg>':'<span>'+(v==='none'?'–':n)+'</span>')+'</button>').join('');
+ return items.map(([v,n])=>'<button type="button" data-type="'+type+'" data-value="'+v+'" aria-label="'+n+'" title="'+n+'">'+
+  (type==='color'?'<i class="swatch" style="--swatch:'+v+'"></i>':type==='face'?'<svg viewBox="95 74 105 90" aria-hidden="true">'+KeycapArt.expression(v)+'</svg><span>'+n+'</span>':n)+'</button>').join('');
 }
 function setupWorld(node){
  node.innerHTML='<div class="room-art"></div><div class="night"></div><button class="story-prop" type="button"><span></span></button><button class="pet-hit" type="button"></button><div class="room-effect" aria-hidden="true"></div>';
@@ -125,10 +116,10 @@ function setupActions(node){
  node.querySelectorAll('button').forEach(b=>b.onclick=()=>act(b.dataset.action));
 }
 function render(view){
- const p=look(), [task,,sticker,symbol]=specials[active];
- if(view.world.dataset.room!==p.scene){
-  view.world.dataset.room=p.scene;
-  view.world.querySelector('.room-art').innerHTML=sceneArt(p);
+ const p=look(),room=rooms[active],history=roomHistory(),[task,specialReply,sticker,symbol]=specials[active];
+ if(view.world.dataset.room!==room.scene){
+  view.world.dataset.room=room.scene;
+  view.world.querySelector('.room-art').innerHTML=sceneArt(room);
  }
  view.world.dataset.action=action;
  const hit=view.world.querySelector('.pet-hit');
@@ -147,26 +138,22 @@ function render(view){
   item.innerHTML=drawnIcon(symbol);
   effect.append(item);
  }
- view.message.textContent=action==='idle'?p.copy:action==='special'?specials[active][1]:action==='wave'?'嗨，在呢。':action==='wake'?'唔……早啊。':officeReplies[action]??replies[p.id][action];
+ view.message.textContent=action==='idle'?room.copy:action==='special'?specialReply:action==='wave'?'嗨，在呢。':action==='wake'?'唔……早啊。':officeReplies[action]??replies[room.id][action];
  view.actions.querySelector('[data-action=special] span').textContent=task;
  view.actions.querySelector('[data-action=sleep] span').textContent=action==='sleep'?'叫醒':'睡觉';
  view.actions.querySelector('[data-action=sleep]').setAttribute('aria-pressed',String(action==='sleep'));
  view.name.textContent=p.name;
- view.room.textContent=p.room;
- $('pet-job').textContent=p.job;
- $('edition').textContent='KEYCAP '+String(active+1).padStart(2,'0')+' / 06';
- if($('nickname')!==document.activeElement) $('nickname').value=profile(p).name??pets[active].name;
- document.querySelectorAll('.roster button').forEach((b,i)=>{
-  b.setAttribute('aria-pressed',String(i===active));
-  const original=pets[i], customized=profile(original);
-  const item={...original,...customized,name:customized.name?.trim()||original.name};
-  b.title=item.job+' · '+item.room;
-  b.querySelector('.roster-art').innerHTML=KeycapArt.make(item,item.name);
-  b.querySelector('.roster-name').textContent=item.name;
- });
+ view.room.textContent=room.room;
+ if($('nickname')!==document.activeElement) $('nickname').value=p.name;
+ $('room-choice').value=active;
+ const preview=$('outfit-preview'),outfit=[p.color,p.face,p.accessory].join('/');
+ if(preview.dataset.outfit!==outfit){
+  preview.innerHTML=KeycapArt.make(p,'','idle',0,true);
+  preview.dataset.outfit=outfit;
+ }
  document.querySelectorAll('.options button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.value===p[b.dataset.type])));
- $('diary-count').textContent=p.found?'收下了：'+sticker:'';
- $('diary').innerHTML=p.log.length?p.log.map(a=>'<li>'+(a==='special'?'在房间里收下了'+sticker+'。':entries[a])+'</li>').join(''):'<li class="empty">还没有新鲜事。</li>';
+ $('diary-count').textContent=history.found?'收下了：'+sticker:'';
+ $('diary').innerHTML=history.log.length?history.log.map(a=>'<li>'+(a==='special'?'在房间里收下了'+sticker+'。':entries[a])+'</li>').join(''):'<li class="empty">还没有新鲜事。</li>';
 }
 const mainView={world:$('world'),name:$('pet-name'),room:$('room'),message:$('message'),actions:$('actions')};
 function paint(){render(mainView)}
@@ -175,7 +162,13 @@ function drawPose(hit,now){
  const sample=reduced.matches
   ? action==='sleep'?KeycapMotion.duration.sleep:(KeycapMotion.duration[action]||0)*.55
   : elapsed;
- hit.innerHTML=KeycapArt.make(visiblePet,visiblePet.name,action,sample,reduced.matches);
+ hit.innerHTML=KeycapArt.make({...visiblePet,key:currentKey},visiblePet.name,action,sample,reduced.matches);
+}
+function showKey(label){
+ clearTimeout(keyTimer);
+ currentKey=label;
+ drawPose(mainView.world.querySelector('.pet-hit'),performance.now());
+ if(label!==character.key)keyTimer=setTimeout(()=>showKey(character.key),1800);
 }
 function animate(now){
  const step=action==='idle'||action==='sleep'?60:32;
@@ -205,11 +198,12 @@ function playTone(a){
  }catch{/* Audio is optional. */}
 }
 function act(a){
- clearTimeout(timer);
  if(action==='sleep'&&(a==='poke'||a==='sleep'))a='wake';
+ if(action===a)return;
+ clearTimeout(timer);
  action=a;
  started=performance.now();
- const prefs=profile(pets[active]);
+ const prefs=roomHistory();
  if(a==='special')prefs.found=true;
  prefs.log=[a,...prefs.log].slice(0,4);
  persist();
@@ -239,7 +233,7 @@ async function toDesktop(){
   const {shape,color,face,accessory}=look();
   const response=await fetch('./desktop',{
    method:'POST',headers:{'Content-Type':'application/json','X-Keycap-Desktop':'1'},
-   body:JSON.stringify({shape,color,face,accessory,office:state.office})
+   body:JSON.stringify({shape,color,face,accessory,office:state.office,desktopKeys:state.desktopKeys})
   });
   if(!response.ok)throw Error('desktop');
   setStatus('桌宠已放到桌面。');
@@ -251,6 +245,10 @@ async function toDesktop(){
  }
 }
 function handleKeys(e){
+ if(!e.isComposing&&!e.target.closest?.('input[type=password]')){
+  const label=keyLegend(e.code);
+  if(label)showKey(label);
+ }
  const a=keyMap[e.code];
  if(!a||e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return;
  if(e.target.closest?.('input,textarea,[contenteditable],select'))return;
@@ -258,21 +256,24 @@ function handleKeys(e){
  e.preventDefault();act(a);
 }
 function init(){
- const r=$('roster');
- r.innerHTML=pets.map((_,i)=>'<button type="button" data-pet="'+i+'"><span class="roster-art" aria-hidden="true"></span><span class="roster-name"></span></button>').join('');
- r.querySelectorAll('[data-pet]').forEach(b=>b.onclick=()=>select(+b.dataset.pet));
+ const roomChoice=$('room-choice');
+ roomChoice.replaceChildren(...rooms.map(({room},index)=>new Option(room,index)));
+ roomChoice.onchange=()=>select(+roomChoice.value);
  for(const [id,type,opts] of [['colors','color',colors],['faces','face',faces],['kits','accessory',kits]])$(id).innerHTML=choices(opts,type);
  document.querySelectorAll('.options button').forEach(b=>b.onclick=()=>{
-  profile(pets[active])[b.dataset.type]=b.dataset.value;persist();paint();
+  state.outfit[b.dataset.type]=b.dataset.value;persist();paint();
  });
- $('nickname').oninput=e=>{profile(pets[active]).name=e.target.value.slice(0,12);persist();paint()};
+ $('nickname').oninput=e=>{state.outfit.name=e.target.value.slice(0,12);persist();paint()};
  $('nickname').onblur=()=>{if(!$('nickname').value.trim())$('nickname').value=look().name};
  $('sound-toggle').onclick=()=>{state.sound=!state.sound;persist();soundButton();if(state.sound)playTone('wave')};
  $('desktop').onclick=toDesktop;
  $('office').checked=state.office;
  $('office').onchange=e=>{state.office=e.target.checked;persist()};
+ $('desktop-keys').checked=state.desktopKeys;
+ $('desktop-keys').onchange=e=>{state.desktopKeys=e.target.checked;persist()};
  document.querySelectorAll('.office-actions button').forEach(b=>b.onclick=()=>act(b.dataset.action));
  window.addEventListener('keydown',handleKeys);
+ window.addEventListener('blur',()=>showKey(character.key));
  setupWorld(mainView.world);setupActions(mainView.actions);soundButton();paint();requestAnimationFrame(animate);
 }
 init();

@@ -11,16 +11,17 @@ const require = createRequire(import.meta.url);
 const art = require('./art.js');
 const {duration} = require('./motion.js');
 const exec = promisify(execFile);
-const characters = {round:'TAB',square:'ESC',wide:'DEL',petal:'SHIFT',step:'ENTER',pill:'END'};
-const colors = new Set(['#f2bd58','#70c1d9','#ad9ae9','#ed8f93','#7fb07f','#e19a78']);
-const faces = new Set(['dot','sleepy','flat','wink','happy']);
-const accessories = new Set(['none','scarf','badge','antenna','patch','stamp']);
+const supportedShapes = new Set([art.character.shape,'square','wide','petal','step','pill']);
+const colors = new Set(art.colors.map(([value])=>value));
+const faces = new Set(art.faces.map(([value])=>value));
+const accessories = new Set(art.kits.map(([value])=>value));
+const legends = '<legends>'+art.keyLabels.map(art.legend).join('')+'</legends>';
 let built, child;
 let queue = Promise.resolve();
 
 export function framePack(pet) {
   const clips = [['idle',144],...Object.entries(duration).filter(([k])=>k!=='special').map(([k, ms])=>[k,Math.ceil(ms*.03)+(k==='sleep'?36:1)])];
-  return '<pet office="'+(pet.office===true?'true':'false')+'">'+clips.map(([id,count])=>'<clip id="'+id+'">'+Array.from({length:count},
+  return '<pet office="'+(pet.office===true?'true':'false')+'" keys="'+(pet.desktopKeys!==false?'true':'false')+'">'+legends+clips.map(([id,count])=>'<clip id="'+id+'">'+Array.from({length:count},
     (_,i)=>art.make(pet,pet.key,id,i*1000/30)).join('')+'</clip>').join('')+'</pet>';
 }
 
@@ -57,8 +58,8 @@ export function desktopRoute(req,res,port) {
     let pet;
     try {
       const v=JSON.parse(raw);
-      if(!v||!Object.hasOwn(characters,v.shape)||!colors.has(v.color)||!faces.has(v.face)||!accessories.has(v.accessory))throw Error('preset');
-      pet={shape:v.shape,color:v.color,face:v.face,accessory:v.accessory,key:characters[v.shape],office:v.office===true};
+      if(!v||!supportedShapes.has(v.shape)||!colors.has(v.color)||!faces.has(v.face)||!accessories.has(v.accessory))throw Error('preset');
+      pet={...art.character,color:v.color,face:v.face,accessory:v.accessory,office:v.office===true,desktopKeys:v.desktopKeys!==false};
     }catch{reply(400,{error:'preset'});return;}
     const launch=queue.then(async()=>{
       built??=compile().catch(e=>{built=null;throw e;});

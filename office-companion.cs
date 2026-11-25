@@ -100,11 +100,33 @@ static class OfficeInput {
         return RegisterRawInputDevices(new[]{device}, 1, (uint)Marshal.SizeOf(typeof(RawDevice)));
     }
 
-    public static bool IsRelease(IntPtr input, IntPtr buffer) {
+    public static bool ReadKey(IntPtr input, IntPtr buffer, bool readIdentity, out bool released, out int virtualKey) {
+        released = false;
+        virtualKey = 0;
         uint size = (uint)(HeaderSize + 16);
         uint actual = GetRawInputData(input, RawInput, buffer, ref size, (uint)HeaderSize);
-        // Read the release flag only. Key identity and text are discarded.
-        return actual >= size && actual != uint.MaxValue && Marshal.ReadInt32(buffer) == 1 &&
-            (Marshal.ReadInt16(buffer, HeaderSize + 2) & 1) != 0;
+        if (actual == uint.MaxValue || actual < HeaderSize + 16 || Marshal.ReadInt32(buffer) != 1) return false;
+        released = (Marshal.ReadInt16(buffer, HeaderSize + 2) & 1) != 0;
+        if (readIdentity && !released) virtualKey = Marshal.ReadInt16(buffer, HeaderSize + 6);
+        return true;
+    }
+
+    static readonly System.Collections.Generic.Dictionary<int,string> KeyNames = new System.Collections.Generic.Dictionary<int,string> {
+        {0x08,"BKSP"},{0x09,"TAB"},{0x0D,"ENTER"},{0x10,"SHIFT"},{0x11,"CTRL"},{0x12,"ALT"},
+        {0x13,"PAUSE"},{0x14,"CAPS"},{0x1B,"ESC"},{0x20,"SPACE"},{0x21,"PG UP"},{0x22,"PG DN"},
+        {0x23,"END"},{0x24,"HOME"},{0x25,"←"},{0x26,"↑"},{0x27,"→"},{0x28,"↓"},{0x2C,"PRTSC"},
+        {0x2D,"INS"},{0x2E,"DEL"},{0x5B,"WIN"},{0x5C,"WIN"},{0x5D,"MENU"},{0x6A,"*"},
+        {0x6B,"+"},{0x6C,","},{0x6D,"-"},{0x6E,"."},{0x6F,"/"},{0x90,"NUM"},{0x91,"SCROLL"},
+        {0xA0,"SHIFT"},{0xA1,"SHIFT"},{0xA2,"CTRL"},{0xA3,"CTRL"},{0xA4,"ALT"},{0xA5,"ALT"},
+        {0xBA,";"},{0xBB,"="},{0xBC,","},{0xBD,"-"},{0xBE,"."},{0xBF,"/"},{0xC0,"`"},
+        {0xDB,"["},{0xDC,"\\"},{0xDD,"]"},{0xDE,"'"},{0xE2,"\\"}
+    };
+
+    public static string Legend(int key) {
+        if ((key >= 0x30 && key <= 0x39) || (key >= 0x41 && key <= 0x5A)) return ((char)key).ToString();
+        if (key >= 0x60 && key <= 0x69) return (key - 0x60).ToString();
+        if (key >= 0x70 && key <= 0x87) return "F" + (key - 0x6F);
+        string legend;
+        return KeyNames.TryGetValue(key, out legend) ? legend : null;
     }
 }

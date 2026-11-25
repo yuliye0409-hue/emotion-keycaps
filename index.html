@@ -15,7 +15,7 @@
   <header><div class="brand"><span aria-hidden="true">✿</span><b>情绪键帽</b><small>KEYCAP CLUB</small></div><div class="header-tools"><button id="sound-toggle" class="sound" type="button" aria-pressed="false" aria-label="互动音效" title="互动音效"></button><button id="desktop" class="desktop" type="button">放到桌面 <span aria-hidden="true">↗</span></button></div></header>
   <main>
     <section class="home" aria-labelledby="room">
-      <div class="room-label"><div><small id="edition"></small><h1 id="room"></h1></div><div class="room-pet"><strong id="pet-name"></strong><small id="pet-job"></small></div></div>
+      <div class="room-label"><div><h1 id="room"></h1></div><div class="room-pet"><strong id="pet-name"></strong></div></div>
       <div class="world" id="world"></div>
       <div class="under"><p id="message" role="status"></p><div id="actions" class="actions" aria-label="和桌宠互动"></div></div>
       <div class="office-actions" role="group" aria-label="陪伴互动">
@@ -26,14 +26,20 @@
         <button type="button" data-action="concern">听我吐槽</button>
       </div>
       <label class="office-toggle"><input type="checkbox" id="office">启用桌宠的办公陪伴提醒</label>
+      <label class="office-toggle"><input type="checkbox" id="desktop-keys">在 Windows 桌宠上显示当前按键</label>
       <p id="desktop-status" role="status" hidden></p>
     </section>
     <aside>
-      <section><h2>键帽住客 <small>01—06</small></h2><div id="roster" class="roster" role="group" aria-label="选择键帽"></div></section>
-      <section><h2>给它换装</h2><label class="setting"><span>名字</span><input id="nickname" maxlength="12" autocomplete="off"></label>
-        <div class="setting"><span id="color-label">颜色</span><div id="colors" class="options" role="group" aria-labelledby="color-label"></div></div>
-        <div class="setting"><span id="face-label">表情</span><div id="faces" class="options" role="group" aria-labelledby="face-label"></div></div>
-        <div class="setting"><span id="kit-label">配件</span><div id="kits" class="options" role="group" aria-labelledby="kit-label"></div></div>
+      <section class="workbench" aria-labelledby="workbench-title">
+        <h2 id="workbench-title">换装工作台</h2>
+        <div class="fitting-mat" id="outfit-preview" aria-hidden="true"></div>
+        <div class="workbench-settings">
+          <label class="setting setting-inline"><span>昵称</span><input id="nickname" maxlength="12" autocomplete="off"></label>
+          <div class="setting"><span id="color-label">帽壳颜色</span><div id="colors" class="options palette" role="group" aria-labelledby="color-label"></div></div>
+          <div class="setting"><span id="face-label">表情</span><div id="faces" class="options expressions" role="group" aria-labelledby="face-label"></div></div>
+          <div class="setting"><span id="kit-label">配件</span><div id="kits" class="options accessories" role="group" aria-labelledby="kit-label"></div></div>
+          <label class="setting setting-inline room-setting"><span>房间</span><select id="room-choice"></select></label>
+        </div>
       </section>
       <section class="diary"><h2>小日记 <small id="diary-count"></small></h2><ul id="diary"></ul></section>
     </aside>
