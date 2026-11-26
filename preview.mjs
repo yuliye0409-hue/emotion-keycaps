@@ -14,7 +14,10 @@ const routes = new Map([
 const port = Number(process.argv[2] || 4178);
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, 'http://127.0.0.1').pathname;
-  if(path === '/desktop'){desktopRoute(request,response,port);return;}
+  if(path === '/desktop' || path === '/desktop/outfit'){
+    desktopRoute(request,response,port,path === '/desktop/outfit');
+    return;
+  }
   if (!routes.has(path) || !['GET','HEAD'].includes(request.method)) {
     response.writeHead(404).end();
     return;

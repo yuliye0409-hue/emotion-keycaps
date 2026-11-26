@@ -24,6 +24,8 @@
         <button type="button" data-action="cheer">庆祝一下</button>
         <button type="button" data-action="break">伸懒腰</button>
         <button type="button" data-action="concern">听我吐槽</button>
+        <button type="button" data-action="highfive">击个掌</button>
+        <button id="peek-action" type="button" data-action="peek">躲猫猫</button>
       </div>
       <label class="office-toggle"><input type="checkbox" id="office">启用桌宠的办公陪伴提醒</label>
       <label class="office-toggle"><input type="checkbox" id="desktop-keys">在 Windows 桌宠上显示当前按键</label>
@@ -32,6 +34,11 @@
       <section class="workbench" aria-labelledby="workbench-title">
         <h2 id="workbench-title">换装工作台</h2>
         <div class="fitting-mat" id="outfit-preview" aria-hidden="true"></div>
+        <div class="outfit-sync">
+          <button id="outfit-sync" type="button">更新桌宠装扮 <span aria-hidden="true">↻</span></button>
+          <p id="outfit-status" role="status"></p>
+          <a id="outfit-help" href="https://github.com/yuliye0409-hue/emotion-keycaps#%E6%9C%AC%E6%9C%BA%E9%A2%84%E8%A7%88" target="_blank" rel="noopener" hidden>查看启动步骤 ↗</a>
+        </div>
         <div class="workbench-settings">
           <label class="setting setting-inline"><span>昵称</span><input id="nickname" maxlength="12" autocomplete="off"></label>
           <div class="setting color-setting">
@@ -44,9 +51,8 @@
             <label class="setting setting-inline hex-setting"><span>HEX</span><input id="color-hex" maxlength="7" spellcheck="false" autocomplete="off"></label>
             <div id="colors" class="options palette" role="group" aria-label="快捷颜色"></div>
           </div>
-          <div class="setting"><span id="face-label">表情</span><div id="faces" class="options expressions" role="group" aria-labelledby="face-label"></div></div>
+          <div class="setting"><span id="face-label" class="face-heading">表情 <small id="face-count"></small></span><div id="faces" class="options expressions" role="group" aria-labelledby="face-label"></div></div>
           <div class="setting"><span id="kit-label">配饰</span><div id="kits" class="options accessories" role="group" aria-labelledby="kit-label"></div></div>
-          <div class="setting"><span id="clothes-label">衣服</span><div id="clothes" class="options accessories" role="group" aria-labelledby="clothes-label"></div></div>
           <label class="setting setting-inline room-setting"><span>房间</span><select id="room-choice"></select></label>
         </div>
       </section>

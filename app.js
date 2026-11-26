@@ -6,7 +6,7 @@ const rooms=[
  {id:'stamp',room:'待办桌',scene:'admin',copy:'纸堆再乱，也会先给每件事盖个小章。'},
  {id:'nap',room:'周末窗边',scene:'weekend',copy:'今天的待办只有三件：晒太阳、喝水、不加班。'}
 ];
-const {character,colors,faces,kits,clothes,colorParts,cleanPalette,partColors,isHex,keyLegend}=KeycapArt;
+const {character,colors,faces,kits,colorParts,cleanPalette,partColors,isHex,keyLegend}=KeycapArt;
 const $=id=>document.getElementById(id);
 const replies={
  bean:{poke:'啊，书签夹哪页了？',water:'咕咚咕咚，续上这口。',sleep:'今天翻到这里，晚安。',move:'绕着笔记本跑一圈！',bonk:'轻一点啦，帽沿敲歪了。'},
@@ -68,9 +68,12 @@ const officeReplies={
  calm:'跟我一起。慢慢吸气，再慢慢呼气。',
  cheer:'这一小步也值得庆祝！',
  break:'我们伸个懒腰？我先来。',
- concern:'我在听。要是想停一下，我给你举牌。'
+ concern:'我在听。要是想停一下，我给你举牌。',
+ highfive:'啪！这一掌，给今天努力的你。',
+ peek:'等我藏好……',
+ peekReveal:'被你找到啦！'
 };
-const entries={poke:'戳了戳帽沿。',water:'喝了一口水。',sleep:'蜷在小窝里打盹。',wake:'醒来伸了个懒腰。',move:'跑了几步。',bonk:'帽沿被轻轻按了一下。',wave:'打了个招呼。',hug:'抱了一下。',calm:'一起做了一次深呼吸。',cheer:'为一件小事庆祝。',break:'伸了个懒腰。',concern:'举了一下暂停牌。'};
+const entries={poke:'戳了戳帽沿。',water:'喝了一口水。',sleep:'枕着小枕头打了个盹。',wake:'醒来伸了个懒腰。',move:'跑了几步。',bonk:'帽沿被轻轻按了一下。',wave:'打了个招呼。',hug:'抱了一下。',calm:'一起做了一次深呼吸。',cheer:'为一件小事庆祝。',break:'伸了个懒腰。',concern:'举了一下暂停牌。',highfive:'击了个掌。',peek:'玩了一次躲猫猫。'};
 const keyMap={Space:'move',KeyH:'wave',KeyW:'water',KeyS:'sleep',KeyB:'bonk',KeyE:'special'};
 const storeKey='keycap-club-2d-v2';
 const state={active:0,sound:false,office:false,desktopKeys:true,outfit:{},rooms:{}};
@@ -85,7 +88,7 @@ try {
   if(typeof outfit?.name==='string') state.outfit.name=outfit.name.slice(0,12);
   if(isHex(outfit?.color))state.outfit.color=outfit.color.toLowerCase();
   state.outfit.palette=cleanPalette(outfit?.palette);
-  for(const [key,options] of [['face',faces],['accessory',kits],['clothing',clothes]]) {
+  for(const [key,options] of [['face',faces],['accessory',kits]]) {
    if(options.some(([value])=>value===outfit?.[key])) state.outfit[key]=outfit[key];
   }
   for(const room of rooms) {
@@ -96,6 +99,7 @@ try {
  }
 } catch { /* Storage can be disabled; the live session still works. */ }
 let active=state.active,action='idle',timer,audio,desktopPending=false;
+let faceVariant=0,peekReady=false;
 let started=performance.now(),frameTime=0,visiblePet;
 let currentKey=character.key,keyTimer;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -106,12 +110,33 @@ const drawnIcon=path=>'<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" s
 const icon=id=>drawnIcon(icons[id]);
 function choices(items,type){
  return items.map(([v,n])=>'<button type="button" data-type="'+type+'" data-value="'+v+'" aria-label="'+n+'" title="'+n+'">'+
-  (type==='color'?'<i class="swatch" style="--swatch:'+v+'"></i>':type==='face'?'<svg viewBox="95 74 105 90" aria-hidden="true">'+KeycapArt.expression(v)+'</svg><span>'+n+'</span>':n)+'</button>').join('');
+  (type==='color'?'<i class="swatch" style="--swatch:'+v+'"></i>':
+   '<span class="option-preview" aria-hidden="true"></span><span>'+n+'</span>')+'</button>').join('');
+}
+function renderOptions(p){
+ const paint=partColors(p);
+ for(const [id,type] of [['faces','face'],['kits','accessory']]){
+  const group=$(id);
+  const styles=type==='face'?[paint.shell,paint.outline,paint.eyes,paint.pupils,paint.mouth,paint.teeth,paint.tongue,paint.glints,paint.cheeks,paint.tears,paint.stars]:
+   [p.color,p.palette,p.face,p.accessory];
+  const signature=JSON.stringify(styles);
+  if(group.dataset.preview===signature)continue;
+  group.dataset.preview=signature;
+  for(const button of group.querySelectorAll('button')){
+   const value=button.dataset.value;
+   button.firstElementChild.innerHTML=type==='face'
+    ?'<svg viewBox="82 68 139 89">'+KeycapArt.expression(value,paint)+'</svg>'
+    :KeycapArt.make({...p,[type]:value},'','idle',0,true).replace('0 0 300 249','37 12 225 222');
+  }
+ }
 }
 function setupWorld(node){
- node.innerHTML='<div class="room-art"></div><div class="night"></div><button class="story-prop" type="button"><span></span></button><button class="pet-hit" type="button"></button><div class="room-effect" aria-hidden="true"></div>';
+ node.innerHTML='<div class="room-art"></div><div class="night"></div><button class="story-prop" type="button"><span></span></button><button class="pet-hit" type="button"></button><button class="box-hit" type="button" aria-label="打开纸箱找咔粒" hidden></button><div class="room-effect" aria-hidden="true"></div>';
  node.querySelector('.pet-hit').onclick=()=>act('poke');
  node.querySelector('.story-prop').onclick=()=>act('special');
+ const box=node.querySelector('.box-hit'),{left,top,right,bottom}=KeycapMotion.peekBox;
+ box.style.cssText='--box-left:'+(32.5+left/300*35)+'%;--box-width:'+((right-left)/300*35)+'%;--box-top:'+((top-124.5)/300*.35)+';--box-height:'+((bottom-top)/300*.35);
+ box.onclick=()=>act('peekReveal');
 }
 function setupActions(node){
  node.innerHTML=actions.map(([a,i,n])=>'<button type="button" data-action="'+a+'">'+icon(i)+'<span>'+n+'</span></button>').join('');
@@ -127,6 +152,8 @@ function render(view){
  const hit=view.world.querySelector('.pet-hit');
  hit.setAttribute('aria-label','戳一戳'+p.name);
  hit.dataset.action=action;
+ hit.disabled=action==='peek'||action==='peekReveal';
+ view.world.querySelector('.box-hit').hidden=!peekReady;
  visiblePet=p;
  drawPose(hit,performance.now());
  const prop=view.world.querySelector('.story-prop');
@@ -140,7 +167,8 @@ function render(view){
   item.innerHTML=drawnIcon(symbol);
   effect.append(item);
  }
- view.message.textContent=action==='idle'?room.copy:action==='special'?specialReply:action==='wave'?'嗨，在呢。':action==='wake'?'唔……早啊。':officeReplies[action]??replies[room.id][action];
+ view.message.textContent=peekReady?'藏好啦！':action==='idle'?room.copy:action==='special'?specialReply:action==='wave'?'嗨，在呢。':action==='wake'?'唔……早啊。':officeReplies[action]??replies[room.id][action];
+ $('peek-action').textContent=peekReady?'找咔粒':'躲猫猫';
  view.actions.querySelector('[data-action=special] span').textContent=task;
  view.actions.querySelector('[data-action=sleep] span').textContent=action==='sleep'?'叫醒':'睡觉';
  view.actions.querySelector('[data-action=sleep]').setAttribute('aria-pressed',String(action==='sleep'));
@@ -148,9 +176,10 @@ function render(view){
  view.room.textContent=room.room;
  if($('nickname')!==document.activeElement) $('nickname').value=p.name;
  $('room-choice').value=active;
- const preview=$('outfit-preview'),outfit=JSON.stringify([p.color,p.palette,p.face,p.accessory,p.clothing]);
+ const preview=$('outfit-preview'),outfit=JSON.stringify([p.color,p.palette,p.face,p.accessory]);
  if(preview.dataset.outfit!==outfit){
   preview.innerHTML=KeycapArt.make(p,'','idle',0,true);
+  renderOptions(p);
   preview.dataset.outfit=outfit;
  }
  const selectedColor=partColors(p)[$('color-part').value];
@@ -163,10 +192,11 @@ const mainView={world:$('world'),name:$('pet-name'),room:$('room'),message:$('me
 function paint(){render(mainView)}
 function drawPose(hit,now){
  const elapsed=Math.max(0,now-started);
+ const duration=KeycapMotion.duration[action]||0;
  const sample=reduced.matches
-  ? action==='sleep'?KeycapMotion.duration.sleep:(KeycapMotion.duration[action]||0)*.55
-  : elapsed;
- hit.innerHTML=KeycapArt.make({...visiblePet,key:currentKey},visiblePet.name,action,sample,reduced.matches);
+  ? action==='sleep'||action==='peek'?duration:duration*(action==='peekReveal'?.44:.55)
+  : action==='peek'?Math.min(elapsed,duration):elapsed;
+ hit.innerHTML=KeycapArt.make({...visiblePet,key:currentKey},visiblePet.name,action,sample,reduced.matches,faceVariant);
 }
 function showKey(label){
  clearTimeout(keyTimer);
@@ -176,7 +206,7 @@ function showKey(label){
 }
 function animate(now){
  const step=action==='idle'||action==='sleep'?60:32;
- if(!reduced.matches&&now-frameTime>=step){
+ if(!reduced.matches&&!(action==='peek'&&peekReady)&&now-frameTime>=step){
   frameTime=now;drawPose($('world').querySelector('.pet-hit'),now);
  }
  requestAnimationFrame(animate);
@@ -191,7 +221,7 @@ function playTone(a){
  try{
   audio??=new AudioContext();
   if(audio.state==='suspended')audio.resume().catch(()=>{});
-  const notes={poke:[240,360],water:[440,560,660],sleep:[230,170],move:[270,370,480],bonk:[115,74],special:[390,490,660],wake:[240,450],wave:[330,470],hug:[360,480],calm:[260,220],cheer:[320,480,600],break:[280,420],concern:[240,290]}[a];
+  const notes={poke:[240,360],water:[440,560,660],sleep:[230,170],move:[270,370,480],bonk:[115,74],special:[390,490,660],wake:[240,450],wave:[330,470],hug:[360,480],calm:[260,220],cheer:[320,480,600],break:[280,420],concern:[240,290],highfive:[360,600],peek:[300,240],peekReveal:[360,540,680]}[a];
   notes.forEach((n,i)=>{
    const t=audio.currentTime+i*.085,o=audio.createOscillator(),g=audio.createGain();
    o.type=a==='bonk'?'triangle':'sine';
@@ -202,23 +232,33 @@ function playTone(a){
  }catch{/* Audio is optional. */}
 }
 function act(a){
+ if(a==='peek'&&peekReady)a='peekReveal';
+ if(a==='peekReveal'&&!peekReady)return;
  if(action==='sleep'&&(a==='poke'||a==='sleep'))a='wake';
  if(action===a)return;
+ const retainFace=a==='wake'&&action==='sleep';
+ const revealFromBox=a==='peekReveal'&&document.activeElement===mainView.world.querySelector('.box-hit');
  clearTimeout(timer);
  action=a;
+ peekReady=a==='peek'&&reduced.matches;
+ if(!retainFace)faceVariant=Math.floor(Math.random()*KeycapMotion.variantCount(a));
  started=performance.now();
  const prefs=roomHistory();
  if(a==='special')prefs.found=true;
- prefs.log=[a,...prefs.log].slice(0,4);
+ if(a!=='peek')prefs.log=[a==='peekReveal'?'peek':a,...prefs.log].slice(0,4);
  persist();
  paint();
+ if(revealFromBox)$('peek-action').focus({preventScroll:true});
  playTone(a);
- if(a!=='sleep')timer=setTimeout(()=>{action='idle';started=performance.now();paint()},a==='special'?3200:KeycapMotion.duration[a]+240);
+ if(a==='peek'&&!peekReady)timer=setTimeout(()=>{
+  peekReady=true;paint();
+ },KeycapMotion.duration.peek);
+ else if(a!=='sleep'&&a!=='peek')timer=setTimeout(()=>{action='idle';started=performance.now();paint()},a==='special'?3200:KeycapMotion.duration[a]+240);
 }
 function select(i){
  if(i===active)return;
  clearTimeout(timer);
- active=state.active=i;action='idle';started=performance.now();
+ active=state.active=i;action='idle';peekReady=false;started=performance.now();
  persist();paint();
 }
 function setStatus(s,help=false){
@@ -226,28 +266,40 @@ function setStatus(s,help=false){
  $('desktop-status').textContent=s;
  $('desktop-help').hidden=!help;
 }
-async function toDesktop(){
+async function toDesktop(updateOutfit=false){
  if(desktopPending)return;
+ const status=updateOutfit?(message,help=false)=>{
+  $('outfit-status').textContent=message;
+  $('outfit-help').hidden=!help;
+ }:setStatus;
  if(location.protocol!=='http:'||!['localhost','127.0.0.1'].includes(location.hostname)){
-  setStatus('请从 Windows 本机预览打开桌宠。',true);return;
+  status('请从 Windows 本机预览打开桌宠。',true);return;
  }
  desktopPending=true;
  $('desktop').disabled=true;
- setStatus('正在把桌宠放到桌面…');
+ $('outfit-sync').disabled=true;
+ $('outfit-help').hidden=true;
+ $('outfit-status').textContent='';
+ setStatus('');
+ status(updateOutfit?'正在更新装扮…':'正在把桌宠放到桌面…');
  try{
-  const {shape,color,face,accessory,clothing,palette}=look();
-  const response=await fetch('./desktop',{
+  const {shape,color,face,accessory,palette}=look();
+  const response=await fetch(updateOutfit?'./desktop/outfit':'./desktop',{
    method:'POST',headers:{'Content-Type':'application/json','X-Keycap-Desktop':'1'},
-   body:JSON.stringify({shape,color,face,accessory,clothing,palette,office:state.office,desktopKeys:state.desktopKeys})
+   body:JSON.stringify({shape,color,face,accessory,palette,office:state.office,desktopKeys:state.desktopKeys})
   });
   const result=await response.json();
+  if(updateOutfit&&response.status===409&&result.error==='not-running'){
+   status('请先点击右上角「放到桌面」。');return;
+  }
   if(!response.ok||result.ok!==true)throw Error(result.error);
-  setStatus('桌宠在当前屏幕右下角，正在向你打招呼。');
+  status(updateOutfit?'桌宠已换上当前装扮。':'桌宠在当前屏幕右下角，正在向你打招呼。');
  }catch{
-  setStatus('没能显示桌宠。请重启 Windows 本机预览后重试。',true);
+  status(updateOutfit?'没能更新装扮。请确认本机预览已更新到最新版。':'没能显示桌宠。请重启 Windows 本机预览后重试。',true);
  }finally{
   desktopPending=false;
   $('desktop').disabled=false;
+  $('outfit-sync').disabled=false;
  }
 }
 function hexToHsv(hex){
@@ -342,7 +394,8 @@ function init(){
  const roomChoice=$('room-choice');
  roomChoice.replaceChildren(...rooms.map(({room},index)=>new Option(room,index)));
  roomChoice.onchange=()=>select(+roomChoice.value);
- for(const [id,type,opts] of [['colors','color',colors],['faces','face',faces],['kits','accessory',kits],['clothes','clothing',clothes]])$(id).innerHTML=choices(opts,type);
+ for(const [id,type,opts] of [['colors','color',colors],['faces','face',faces],['kits','accessory',kits]])$(id).innerHTML=choices(opts,type);
+ $('face-count').textContent=faces.length;
  const syncColors=setupColors();
  document.querySelectorAll('.options button:not([data-type=color])').forEach(b=>b.onclick=()=>{
   state.outfit[b.dataset.type]=b.dataset.value;syncColors();persist();paint();
@@ -350,7 +403,8 @@ function init(){
  $('nickname').oninput=e=>{state.outfit.name=e.target.value.slice(0,12);persist();paint()};
  $('nickname').onblur=()=>{if(!$('nickname').value.trim())$('nickname').value=look().name};
  $('sound-toggle').onclick=()=>{state.sound=!state.sound;persist();soundButton();if(state.sound)playTone('wave')};
- $('desktop').onclick=toDesktop;
+ $('desktop').onclick=()=>toDesktop();
+ $('outfit-sync').onclick=()=>toDesktop(true);
  $('office').checked=state.office;
  $('office').onchange=e=>{state.office=e.target.checked;persist()};
  $('desktop-keys').checked=state.desktopKeys;

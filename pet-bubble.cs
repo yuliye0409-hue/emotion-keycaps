@@ -83,7 +83,7 @@ static class PetBubbleLayout {
     public static readonly Point Center = new Point(335, 280);
     public static readonly Size Stage = new Size(670, 596);
 
-    public static Rect[] Place(Rect available) {
+    public static Rect[] Place(Rect available, int count) {
         var candidates = new List<Point>();
         foreach (var x in new[] {-132, -44, 44, 132}) candidates.Add(new Point(x, -117));
         foreach (var y in new[] {-70, -23, 24, 71}) {
@@ -104,7 +104,7 @@ static class PetBubbleLayout {
             clearance.Inflate(5, 5);
             if (placed.Any(previous => previous.IntersectsWith(clearance))) continue;
             placed.Add(bounds);
-            if (placed.Count == 12) break;
+            if (placed.Count == count) break;
         }
         return placed.ToArray();
     }
@@ -116,7 +116,7 @@ static class PetBubbleLayout {
             new Rect(0,Center.Y-44,Center.X+33,full.Bottom-Center.Y+44),
             new Rect(Center.X-33,0,full.Right-Center.X+33,Center.Y+48),
             new Rect(0,0,Center.X+33,Center.Y+48)};
-        return areas.All(area => Place(area).Length == 12);
+        return areas.All(area => Place(area,14).Length == 14);
     }
 }
 

@@ -19,15 +19,17 @@ static class DesktopPet {
     [STAThread] static int Main(string[] args) {
         if (args.Length != 1 && args.Length != 2) return 2;
         try {
-            bool office, keys;
+            bool office, keys, reveal;
             string request;
+            Rect boxBounds;
             Dictionary<string, DrawingGroup> legends;
-            var clips = Read(args[0], out office, out keys, out legends, out request);
-            if (args.Length == 2 && args[1] == "--check") return clips.Count == 15 && CheckOffice() &&
+            var clips = Read(args[0], out office, out keys, out legends, out request, out reveal, out boxBounds);
+            if (args.Length == 2 && args[1] == "--check") return clips.ContainsKey("highfive:1") && clips.ContainsKey("peekReveal:1") && CheckOffice() &&
+                boxBounds.Contains(new Point(180,190)) && clips["peekReveal"].Any(Svg.HasClip) && !Svg.HasGaze(clips["peek"].Last()) &&
                 PetBubbleHover.Check() && PetBubbleLayout.Check() && Svg.HasGaze(clips["wave"][0]) &&
                 legends.ContainsKey("ESC") && legends.ContainsKey("A") ? 0 : 3;
             var app = new Application();
-            app.Run(new PetWindow(args[0], clips, office, keys, legends, request));
+            app.Run(new PetWindow(args[0], clips, office, keys, legends, request, boxBounds));
             return 0;
         } catch (Exception e) {
             if (args.Length == 2) Console.Error.WriteLine(e);
@@ -37,11 +39,14 @@ static class DesktopPet {
     }
 
     internal static Dictionary<string, DrawingGroup[]> Read(string path, out bool office, out bool keys,
-        out Dictionary<string, DrawingGroup> legends, out string request) {
+        out Dictionary<string, DrawingGroup> legends, out string request, out bool reveal, out Rect boxBounds) {
         var root = XDocument.Load(path).Root;
         request = (string)root.Attribute("request");
+        reveal = (bool?)root.Attribute("reveal") ?? true;
         office = (bool?)root.Attribute("office") ?? false;
         keys = (bool?)root.Attribute("keys") ?? false;
+        var box = ((string)root.Attribute("box")).Split(' ').Select(v=>Double.Parse(v,CultureInfo.InvariantCulture)).ToArray();
+        boxBounds = new Rect(box[0],box[1],box[2],box[3]);
         legends = root.Elements("legends").Elements().ToDictionary(e => (string)e.Attribute("data-key"), Svg.Draw);
         return root.Elements("clip").ToDictionary(
             e => (string)e.Attribute("id"), e => e.Elements().Select(Svg.Draw).ToArray());
@@ -79,19 +84,23 @@ sealed class PetWindow : Window {
     readonly Button officeButton, sleepButton;
     bool officeEnabled, officePreset, keysEnabled, inputListening, companionAction;
     long nextOfficeCheck, bubbleUntil, keyUntil;
+    string currentKey;
     HwndSource inputSource;
     IntPtr inputBuffer;
     Dictionary<string, DrawingGroup[]> clips;
     Dictionary<string, DrawingGroup> legends;
+    Rect boxBounds;
     DateTime loaded, nextCheck;
     string action = "idle";
     long started;
+    readonly Random reactions = new Random();
+    int faceVariant;
     Point pressed;
-    bool dragged;
+    bool dragged, peekReady;
     int clicks;
     public PetWindow(string path, Dictionary<string, DrawingGroup[]> clips, bool office, bool keys,
-        Dictionary<string, DrawingGroup> legends, string request) {
-        this.path = path; this.clips = clips; this.legends = legends; loaded = File.GetLastWriteTimeUtc(path);
+        Dictionary<string, DrawingGroup> legends, string request, Rect boxBounds) {
+        this.path = path; this.clips = clips; this.legends = legends; this.boxBounds=boxBounds; loaded = File.GetLastWriteTimeUtc(path);
         Title = "Emotion Keycaps";
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; AllowsTransparency = true;
         Background = Brushes.Transparent; ShowInTaskbar = false; ShowActivated = false; Topmost = true;
@@ -127,7 +136,12 @@ sealed class PetWindow : Window {
         surface.MouseLeftButtonUp += (s,e) => {
             if (!surface.IsMouseCaptured) return;
             surface.ReleaseMouseCapture();
-            if (!dragged) Start(clicks > 1 ? "bonk" : "poke");
+            if (dragged) return;
+            if (action == "peek") {
+                if (boxBounds.Contains(surface.ToDrawingPoint(e.GetPosition(surface)))) Start("peekReveal");
+                return;
+            }
+            if (action != "peekReveal") Start(clicks > 1 ? "bonk" : "poke");
         };
         sleepButton = ActionChip("睡觉", "sleep", 0);
         officeButton = PetBubbleStyle.Action("", 3, () => SetOffice(!officeEnabled));
@@ -136,6 +150,7 @@ sealed class PetWindow : Window {
             ActionChip("抱一下", "hug", 1), ActionChip("轻敲", "bonk", 1),
             ActionChip("听我吐槽", "concern", 2), ActionChip("一起缓缓", "calm", 2),
             ActionChip("庆祝一下", "cheer", 2), ActionChip("伸个懒腰", "break", 2),
+            ActionChip("击个掌", "highfive", 1), ActionChip("躲猫猫", "peek", 1),
             officeButton, PetBubbleStyle.Action("收起桌宠", 3, Close)
         };
         actionStage = new Canvas();
@@ -202,8 +217,13 @@ sealed class PetWindow : Window {
         companion.Interact(clock.ElapsedMilliseconds);
         Begin("wave");
         Say("我来啦！");
-        surface.SetLegend(null);
-        surface.Update(clips["wave"][0]);
+        ClearLegend();
+        surface.Update(ActionFrames()[0]);
+        Acknowledge(request);
+    }
+
+    void Acknowledge(string request) {
+        var hwnd = new WindowInteropHelper(this).Handle;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
             File.WriteAllText(path + ".ready", hwnd.ToInt64().ToString(CultureInfo.InvariantCulture) + "|" + request)));
     }
@@ -220,6 +240,7 @@ sealed class PetWindow : Window {
     }
 
     void TickHover(long now) {
+        if (action == "peek" || action == "peekReveal") { HideActions(); surface.Aim(null); return; }
         var activeBubble = actionBubble.IsOpen ? actionButtons.FirstOrDefault(b => b.IsMouseOver) : null;
         hover.Update(now, surface.IsMouseOver, activeBubble != null, surface.IsMouseCaptured);
         if (hover.Open && !actionBubble.IsOpen) OpenActions();
@@ -250,7 +271,7 @@ sealed class PetWindow : Window {
         if (stage.IsEmpty || stage.Width <= 16 || stage.Height <= 16) { hover.Dismiss(); return; }
         var safeArea = stage;
         safeArea.Inflate(-8,-8);
-        var positions = PetBubbleLayout.Place(safeArea);
+        var positions = PetBubbleLayout.Place(safeArea,actionButtons.Length);
         if (positions.Length == 0) { hover.Dismiss(); return; }
         actionStage.Children.Clear();
         var envelope = positions.Aggregate(Rect.Empty, Rect.Union);
@@ -282,12 +303,22 @@ sealed class PetWindow : Window {
         if (released && officeEnabled) companion.KeyReleased(now);
         var label = OfficeInput.Legend(key);
         if (label != null) {
-            DrawingGroup drawing;
-            if (legends.TryGetValue(label,out drawing)) surface.SetLegend(drawing);
+            currentKey = label;
+            UpdateLegend();
             keyUntil = now + 1800;
         }
         return IntPtr.Zero;
     }
+    void UpdateLegend() {
+        DrawingGroup drawing;
+        surface.SetLegend(currentKey != null && legends.TryGetValue(currentKey, out drawing) ? drawing : null);
+    }
+    void ClearLegend() {
+        currentKey = null;
+        keyUntil = 0;
+        surface.SetLegend(null);
+    }
+
     bool ListenForInput(bool wanted) {
         if (wanted == inputListening) return true;
         if (inputSource == null || !OfficeInput.Listen(inputSource.Handle, wanted)) return false;
@@ -300,7 +331,7 @@ sealed class PetWindow : Window {
             return;
         }
         keysEnabled = wanted;
-        if (!wanted) surface.SetLegend(null);
+        if (!wanted) ClearLegend();
     }
     void SetOffice(bool wanted) {
         PetBubbleStyle.Label(officeButton, officeEnabled ? "陪伴·开" : "陪伴·关");
@@ -327,9 +358,13 @@ sealed class PetWindow : Window {
         {"calm","跟我一起。\n慢慢吸气，再慢慢呼气。"},
         {"hug","抱一下。你忙你的，我在这里。"},
         {"cheer","给你挥个手。又见面啦！"},
-        {"break","我们伸个懒腰？我先来。"}
+        {"break","我们伸个懒腰？我先来。"},
+        {"highfive","啪！这一掌，给今天努力的你。"},
+        {"peek","等我藏好……"},
+        {"peekReveal","被你找到啦！"}
     };
     void Start(string id) {
+        if (id == "peekReveal" && (action != "peek" || FrameIndex(clock.ElapsedMilliseconds) < ActionFrames().Length-1)) return;
         companion.Interact(clock.ElapsedMilliseconds);
         var next = action == "sleep" && (id == "sleep" || id == "poke" || id == "bonk") ? "wake" : id;
         if (next == action && next != "idle") return;
@@ -338,35 +373,48 @@ sealed class PetWindow : Window {
         if (id == "cheer") Say("这一小步也值得庆祝！");
     }
     void Begin(string id, bool automatic=false) {
+        bool keepFace = action == "sleep" && id == "wake";
         action=id;
+        peekReady=false;
+        if (!keepFace) faceVariant=clips.ContainsKey(id+":1") ? reactions.Next(2) : 0;
         companionAction=automatic;
         started = clock.ElapsedMilliseconds;
         string line;
         if (Lines.TryGetValue(id,out line)) Say(line);
         else Say(null);
     }
+    DrawingGroup[] ActionFrames() {
+        DrawingGroup[] alternative;
+        return faceVariant!=0 && clips.TryGetValue(action+":"+faceVariant,out alternative) ? alternative : clips[action];
+    }
+    int FrameIndex(long now) { return (int)((now - started) * 30 / 1000); }
     void Tick() {
+        string updatedOutfit = null;
         var now = DateTime.UtcNow;
         if (now > nextCheck) {
             nextCheck = now.AddMilliseconds(600);
             var stamp = File.GetLastWriteTimeUtc(path);
             if (stamp != loaded && File.Exists(path)) {
                 try {
-                    bool office, keys;
+                    bool office, keys, reveal;
                     string request;
-                    clips = DesktopPet.Read(path, out office, out keys, out legends, out request);
+                    clips = DesktopPet.Read(path, out office, out keys, out legends, out request, out reveal, out boxBounds);
                     loaded = stamp;
-                    if (office != officePreset) { officePreset=office; SetOffice(office); }
-                    if (keys != keysEnabled) SetKeys(keys);
-                    Reveal(request);
+                    if (reveal) {
+                        if (office != officePreset) { officePreset=office; SetOffice(office); }
+                        if (keys != keysEnabled) SetKeys(keys);
+                        Reveal(request);
+                    } else {
+                        UpdateLegend();
+                        updatedOutfit = request;
+                    }
                 }
                 catch (IOException) { } // The preview may still be replacing the file.
             }
         }
         long elapsed=clock.ElapsedMilliseconds;
         if (keyUntil > 0 && elapsed >= keyUntil) {
-            keyUntil = 0;
-            surface.SetLegend(null);
+            ClearLegend();
         }
         TickHover(elapsed);
         bubble.Visibility = elapsed < bubbleUntil && !actionBubble.IsOpen && !String.IsNullOrEmpty(caption.Text)
@@ -378,14 +426,19 @@ sealed class PetWindow : Window {
                 if (signal != null) Begin(signal,true);
             }
         }
-        var frames = clips[action];
-        int frame = (int)((clock.ElapsedMilliseconds - started) * 30 / 1000);
+        var frames = ActionFrames();
+        int frame = FrameIndex(elapsed);
         if (action == "idle") frame %= frames.Length;
         else if (action == "lonely" || action == "tears") frame %= frames.Length;
         else if (action == "sleep" && frame >= frames.Length - 36)
             frame = frames.Length - 36 + (frame - frames.Length + 36) % 36;
+        else if (action == "peek") {
+            if (!peekReady && frame >= frames.Length-1) { peekReady=true; Say("藏好啦！"); }
+            frame=Math.Min(frame,frames.Length-1);
+        }
         else if (frame >= frames.Length) { action="idle"; started=elapsed; frames=clips["idle"]; frame=0; }
         surface.Update(frames[frame]);
+        if (updatedOutfit != null) Acknowledge(updatedOutfit);
     }
 }
 
@@ -417,6 +470,7 @@ sealed class DrawingSurface : FrameworkElement {
         if (Object.ReferenceEquals(frame, next)) return;
         frame=next; InvalidateVisual();
     }
+    public Point ToDrawingPoint(Point p) { return new Point(p.X/scale.ScaleX,p.Y/scale.ScaleY); }
     protected override void OnRender(DrawingContext dc) {
         if (frame == null) return;
         dc.PushTransform(scale);
@@ -426,7 +480,7 @@ sealed class DrawingSurface : FrameworkElement {
     }
     protected override HitTestResult HitTestCore(PointHitTestParameters h) {
         var p = h.HitPoint;
-        var tex = new Point(p.X/.7,p.Y/.7);
+        var tex = ToDrawingPoint(p);
         return frame != null && Hits(frame, tex) ? new PointHitTestResult(this, p) : null;
     }
     static bool Hits(Drawing drawing, Point point) {
@@ -435,6 +489,7 @@ sealed class DrawingSurface : FrameworkElement {
             if (group.Opacity < .20) return false;
             var t = group.Transform;
             if (t != null && t.Inverse != null) point = t.Inverse.Transform(point);
+            if (group.ClipGeometry != null && !group.ClipGeometry.FillContains(point)) return false;
             return group.Children.Any(c => Hits(c, point));
         }
         var g = drawing as GeometryDrawing;
@@ -461,6 +516,9 @@ static class Svg {
         group.Freeze(); return group;
     }
     internal static bool HasGaze(DrawingGroup frame) { return (Markers(frame) & (HasPupil | Pupil)) != 0; }
+    internal static bool HasClip(DrawingGroup frame) {
+        return frame.ClipGeometry != null || frame.Children.OfType<DrawingGroup>().Any(HasClip);
+    }
     static int Markers(DrawingGroup group) { return (int)group.GetValue(DisplayMarker); }
 
     internal static void DrawGaze(DrawingContext dc, Drawing drawing, Vector gaze, DrawingGroup legend = null) {
@@ -478,13 +536,18 @@ static class Svg {
             return;
         }
         dc.PushTransform(group.Transform ?? Transform.Identity);
+        if (group.ClipGeometry != null) dc.PushClip(group.ClipGeometry);
         dc.PushOpacity(group.Opacity);
         foreach (var item in group.Children) DrawGaze(dc,item,gaze,legend);
         dc.Pop();
+        if (group.ClipGeometry != null) dc.Pop();
         dc.Pop();
     }
     static DrawingGroup DrawNode(XElement e,string fill,string stroke) {
         var g=new DrawingGroup{Opacity=Number(e,"opacity",1)};
+        if (e.Name.LocalName=="defs") return g;
+        var bottom=Attr(e,"data-clip-bottom");
+        if (bottom!=null) g.ClipGeometry=new RectangleGeometry(new Rect(0,0,300,Number(e,"data-clip-bottom")));
         var transform=(string)Attr(e,"transform");
         if (transform!=null) {
             var chain=new TransformGroup();

@@ -10,21 +10,25 @@ import {setTimeout as delay} from 'node:timers/promises';
 
 const require = createRequire(import.meta.url);
 const art = require('./art.js');
-const {duration} = require('./motion.js');
+const {duration,variantCount,peekBox} = require('./motion.js');
 const exec = promisify(execFile);
 const supportedShapes = new Set([art.character.shape,'square','wide','petal','step','pill']);
 const faces = new Set(art.faces.map(([value])=>value));
 const accessories = new Set(art.kits.map(([value])=>value));
-const clothes = new Set(art.clothes.map(([value])=>value));
 let built, child;
 let queue = Promise.resolve();
 
-export function framePack(pet,request='') {
+export function framePack(pet,request='',reveal=true) {
   const clips = [['idle',144],...Object.entries(duration).filter(([k])=>k!=='special').map(([k, ms])=>[k,Math.ceil(ms*.03)+(k==='sleep'?36:1)])];
   const {legend:legendColor}=art.partColors(pet);
   const legends='<legends>'+art.keyLabels.map(label=>art.legend(label,legendColor)).join('')+'</legends>';
-  return '<pet request="'+art.esc(request)+'" office="'+(pet.office===true?'true':'false')+'" keys="'+(pet.desktopKeys!==false?'true':'false')+'">'+legends+clips.map(([id,count])=>'<clip id="'+id+'">'+Array.from({length:count},
-    (_,i)=>art.make(pet,pet.key,id,i*1000/30)).join('')+'</clip>').join('')+'</pet>';
+  const boxBounds=[peekBox.left,peekBox.top,peekBox.right-peekBox.left,peekBox.bottom-peekBox.top].join(' ');
+  return '<pet request="'+art.esc(request)+'" reveal="'+reveal+'" office="'+(pet.office===true?'true':'false')+'" keys="'+(pet.desktopKeys!==false?'true':'false')+'" box="'+boxBounds+'">'+legends+
+    clips.flatMap(([id,count])=>Array.from({length:variantCount(id)},(_,variant)=>{
+      const clipId=variant===0?id:id+':'+variant;
+      return '<clip id="'+clipId+'">'+Array.from({length:count},
+        (_,i)=>art.make(pet,pet.key,id,i*1000/30,false,variant)).join('')+'</clip>';
+    })).join('')+'</pet>';
 }
 
 async function compile() {
@@ -46,7 +50,7 @@ async function compile() {
   }
 }
 
-export function desktopRoute(req,res,port) {
+export function desktopRoute(req,res,port,updateOutfit=false) {
   const reply=(code,data)=>res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}).end(JSON.stringify(data));
   if(req.method!=='POST'||!['http://localhost:', 'http://127.0.0.1:'].some(base=>req.headers.origin===base+port)||
     req.headers['x-keycap-desktop']!=='1'||req.headers['content-type']!=='application/json') {
@@ -60,16 +64,17 @@ export function desktopRoute(req,res,port) {
     let pet;
     try {
       const v=JSON.parse(raw);
-      if(!v||!supportedShapes.has(v.shape)||!art.isHex(v.color)||!faces.has(v.face)||!accessories.has(v.accessory)||
-        (v.clothing!==undefined&&!clothes.has(v.clothing)))throw Error('preset');
-      pet={...art.character,color:v.color,face:v.face,accessory:v.accessory,clothing:v.clothing??art.character.clothing,
+      if(!v||!supportedShapes.has(v.shape)||!art.isHex(v.color)||!faces.has(v.face)||!accessories.has(v.accessory))throw Error('preset');
+      pet={...art.character,color:v.color,face:v.face,accessory:v.accessory,
         palette:art.cleanPalette(v.palette),office:v.office===true,desktopKeys:v.desktopKeys!==false};
     }catch{reply(400,{error:'preset'});return;}
     const launch=queue.then(async()=>{
+      const running=()=>child&&child.exitCode===null&&child.signalCode===null;
+      if(updateOutfit&&!running())return false;
       built??=compile().catch(e=>{built=null;throw e;});
       const {executable,sprites}=await built;
       const request=randomUUID(),ready=sprites+'.ready';
-      await writeFile(sprites+'.tmp',framePack(pet,request),'utf8');
+      await writeFile(sprites+'.tmp',framePack(pet,request,!updateOutfit),'utf8');
       await rename(sprites+'.tmp',sprites);
       let spawnError;
       const start=()=>{
@@ -78,12 +83,13 @@ export function desktopRoute(req,res,port) {
         proc.unref();
         return proc;
       };
-      const running=()=>child&&child.exitCode===null&&child.signalCode===null;
       let started=!running();
+      if(updateOutfit&&started)return false;
       if(started)child=start();
       for(let i=0;i<=80;i++){
         if(spawnError)throw spawnError;
         if(!running()){
+          if(updateOutfit)return false;
           if(started)throw Error('Desktop pet exited during startup');
           started=true;
           child=start();
@@ -92,13 +98,16 @@ export function desktopRoute(req,res,port) {
           if(['ENOENT','EBUSY','EPERM'].includes(error.code))return '';
           throw error;
         });
-        if(running()&&marker.split('|')[1]===request)return;
+        if(running()&&marker.split('|')[1]===request)return true;
         await delay(100);
       }
       if(started&&running())child.kill();
       throw Error('Desktop pet did not show the requested outfit');
     });
     queue=launch.catch(()=>{});
-    launch.then(()=>reply(200,{ok:true}),error=>{console.error('Desktop launch failed:',error);reply(500,{error:'launch'});});
+    launch.then(applied=>{
+      if(applied)reply(200,{ok:true});
+      else reply(409,{error:'not-running'});
+    },error=>{console.error('Desktop request failed:',error);reply(500,{error:'desktop'});});
   });
 }
