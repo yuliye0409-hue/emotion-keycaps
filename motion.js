@@ -31,7 +31,7 @@
   let lf=point(104,220),rf=point(196,220),stride=0;
   if(a==='idle'){
    y=reduced?0:-1.25*(1-Math.cos(ms/570));
-   if(!reduced&&ms%4800>4650&&p.face!=='sleepy')smile='blink';
+   if(!reduced&&ms%4800>4650&&p.face==='dot')smile='blink';
   } else if(a==='water'){
    const lift=peak(t,.25,.49,.68,.86), hold=peak(t,.06,.25,.86,.98);
    r=6*lift;y=3*lift-.9*Math.sin(t*61)*peak(t,.51,.54,.63,.67);

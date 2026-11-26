@@ -1,6 +1,7 @@
 import {execFile, spawn} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {access, mkdtemp, rename, rm, writeFile} from 'node:fs/promises';
+import {access, mkdtemp, readFile, rename, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -12,16 +13,17 @@ const art = require('./art.js');
 const {duration} = require('./motion.js');
 const exec = promisify(execFile);
 const supportedShapes = new Set([art.character.shape,'square','wide','petal','step','pill']);
-const colors = new Set(art.colors.map(([value])=>value));
 const faces = new Set(art.faces.map(([value])=>value));
 const accessories = new Set(art.kits.map(([value])=>value));
-const legends = '<legends>'+art.keyLabels.map(art.legend).join('')+'</legends>';
+const clothes = new Set(art.clothes.map(([value])=>value));
 let built, child;
 let queue = Promise.resolve();
 
-export function framePack(pet) {
+export function framePack(pet,request='') {
   const clips = [['idle',144],...Object.entries(duration).filter(([k])=>k!=='special').map(([k, ms])=>[k,Math.ceil(ms*.03)+(k==='sleep'?36:1)])];
-  return '<pet office="'+(pet.office===true?'true':'false')+'" keys="'+(pet.desktopKeys!==false?'true':'false')+'">'+legends+clips.map(([id,count])=>'<clip id="'+id+'">'+Array.from({length:count},
+  const {legend:legendColor}=art.partColors(pet);
+  const legends='<legends>'+art.keyLabels.map(label=>art.legend(label,legendColor)).join('')+'</legends>';
+  return '<pet request="'+art.esc(request)+'" office="'+(pet.office===true?'true':'false')+'" keys="'+(pet.desktopKeys!==false?'true':'false')+'">'+legends+clips.map(([id,count])=>'<clip id="'+id+'">'+Array.from({length:count},
     (_,i)=>art.make(pet,pet.key,id,i*1000/30)).join('')+'</clip>').join('')+'</pet>';
 }
 
@@ -58,28 +60,43 @@ export function desktopRoute(req,res,port) {
     let pet;
     try {
       const v=JSON.parse(raw);
-      if(!v||!supportedShapes.has(v.shape)||!colors.has(v.color)||!faces.has(v.face)||!accessories.has(v.accessory))throw Error('preset');
-      pet={...art.character,color:v.color,face:v.face,accessory:v.accessory,office:v.office===true,desktopKeys:v.desktopKeys!==false};
+      if(!v||!supportedShapes.has(v.shape)||!art.isHex(v.color)||!faces.has(v.face)||!accessories.has(v.accessory)||
+        (v.clothing!==undefined&&!clothes.has(v.clothing)))throw Error('preset');
+      pet={...art.character,color:v.color,face:v.face,accessory:v.accessory,clothing:v.clothing??art.character.clothing,
+        palette:art.cleanPalette(v.palette),office:v.office===true,desktopKeys:v.desktopKeys!==false};
     }catch{reply(400,{error:'preset'});return;}
     const launch=queue.then(async()=>{
       built??=compile().catch(e=>{built=null;throw e;});
       const {executable,sprites}=await built;
-      await writeFile(sprites+'.tmp',framePack(pet),'utf8');
+      const request=randomUUID(),ready=sprites+'.ready';
+      await writeFile(sprites+'.tmp',framePack(pet,request),'utf8');
       await rename(sprites+'.tmp',sprites);
-      if(child&&child.exitCode===null&&child.signalCode===null)return;
-      const ready=sprites+'.ready';
-      await rm(ready,{force:true});
-      const proc=spawn(executable,[sprites],{stdio:'ignore',detached:true});
       let spawnError;
-      proc.once('error',e=>{spawnError=e;});
-      for (let i=0;;i++) {
+      const start=()=>{
+        const proc=spawn(executable,[sprites],{stdio:'ignore',detached:true});
+        proc.once('error',e=>{spawnError=e;if(child===proc)child=null;});
+        proc.unref();
+        return proc;
+      };
+      const running=()=>child&&child.exitCode===null&&child.signalCode===null;
+      let started=!running();
+      if(started)child=start();
+      for(let i=0;i<=80;i++){
         if(spawnError)throw spawnError;
-        if(proc.exitCode!==null||proc.signalCode!==null)throw Error('Desktop pet exited during startup');
-        if(await access(ready).then(()=>true,()=>false))break;
-        if(i===80){proc.kill();throw Error('Desktop pet did not draw its first frame');}
+        if(!running()){
+          if(started)throw Error('Desktop pet exited during startup');
+          started=true;
+          child=start();
+        }
+        const marker=await readFile(ready,'utf8').catch(error=>{
+          if(['ENOENT','EBUSY','EPERM'].includes(error.code))return '';
+          throw error;
+        });
+        if(running()&&marker.split('|')[1]===request)return;
         await delay(100);
       }
-      child=proc;proc.unref();
+      if(started&&running())child.kill();
+      throw Error('Desktop pet did not show the requested outfit');
     });
     queue=launch.catch(()=>{});
     launch.then(()=>reply(200,{ok:true}),error=>{console.error('Desktop launch failed:',error);reply(500,{error:'launch'});});

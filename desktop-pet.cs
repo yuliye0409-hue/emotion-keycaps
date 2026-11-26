@@ -20,11 +20,14 @@ static class DesktopPet {
         if (args.Length != 1 && args.Length != 2) return 2;
         try {
             bool office, keys;
+            string request;
             Dictionary<string, DrawingGroup> legends;
-            var clips = Read(args[0], out office, out keys, out legends);
-            if (args.Length == 2 && args[1] == "--check") return clips.Count == 15 && CheckOffice() && PetBubbleHover.Check() && PetBubbleLayout.Check() && Svg.HasGaze(clips["idle"][0]) ? 0 : 3;
+            var clips = Read(args[0], out office, out keys, out legends, out request);
+            if (args.Length == 2 && args[1] == "--check") return clips.Count == 15 && CheckOffice() &&
+                PetBubbleHover.Check() && PetBubbleLayout.Check() && Svg.HasGaze(clips["wave"][0]) &&
+                legends.ContainsKey("ESC") && legends.ContainsKey("A") ? 0 : 3;
             var app = new Application();
-            app.Run(new PetWindow(args[0], clips, office, keys, legends));
+            app.Run(new PetWindow(args[0], clips, office, keys, legends, request));
             return 0;
         } catch (Exception e) {
             if (args.Length == 2) Console.Error.WriteLine(e);
@@ -34,8 +37,9 @@ static class DesktopPet {
     }
 
     internal static Dictionary<string, DrawingGroup[]> Read(string path, out bool office, out bool keys,
-        out Dictionary<string, DrawingGroup> legends) {
+        out Dictionary<string, DrawingGroup> legends, out string request) {
         var root = XDocument.Load(path).Root;
+        request = (string)root.Attribute("request");
         office = (bool?)root.Attribute("office") ?? false;
         keys = (bool?)root.Attribute("keys") ?? false;
         legends = root.Elements("legends").Elements().ToDictionary(e => (string)e.Attribute("data-key"), Svg.Draw);
@@ -86,7 +90,7 @@ sealed class PetWindow : Window {
     bool dragged;
     int clicks;
     public PetWindow(string path, Dictionary<string, DrawingGroup[]> clips, bool office, bool keys,
-        Dictionary<string, DrawingGroup> legends) {
+        Dictionary<string, DrawingGroup> legends, string request) {
         this.path = path; this.clips = clips; this.legends = legends; loaded = File.GetLastWriteTimeUtc(path);
         Title = "Emotion Keycaps";
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; AllowsTransparency = true;
@@ -169,7 +173,7 @@ sealed class PetWindow : Window {
         };
         timer.Interval = TimeSpan.FromMilliseconds(33);
         timer.Tick += (s,e) => Tick(); timer.Start();
-        ContentRendered += (s,e) => File.WriteAllText(path + ".ready", new WindowInteropHelper(this).Handle.ToInt64().ToString(CultureInfo.InvariantCulture));
+        ContentRendered += (s,e) => Reveal(request);
         Closed += (s,e) => {
             timer.Stop();
             actionBubble.IsOpen = false;
@@ -177,6 +181,31 @@ sealed class PetWindow : Window {
             if (inputBuffer != IntPtr.Zero) Marshal.FreeHGlobal(inputBuffer);
             inputBuffer=IntPtr.Zero;
         };
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    struct WindowRect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out WindowRect rect);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr hwnd, IntPtr order, int x, int y, int width, int height, uint flags);
+
+    void Reveal(string request) {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var area = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position).WorkingArea;
+        WindowRect rect;
+        if (!GetWindowRect(hwnd, out rect)) throw new InvalidOperationException("Unable to measure desktop pet");
+        var dpi = inputSource.CompositionTarget.TransformToDevice;
+        int x = Math.Max(area.Left, area.Right - (rect.Right - rect.Left) - (int)(22 * dpi.M11));
+        int y = Math.Max(area.Top, area.Bottom - (rect.Bottom - rect.Top) - (int)(20 * dpi.M22));
+        const uint noSize = 0x0001, noActivate = 0x0010, showWindow = 0x0040;
+        if (!SetWindowPos(hwnd, new IntPtr(-1), x, y, 0, 0, noSize | noActivate | showWindow))
+            throw new InvalidOperationException("Unable to show desktop pet");
+        HideActions();
+        companion.Interact(clock.ElapsedMilliseconds);
+        Begin("wave");
+        Say("我来啦！");
+        surface.SetLegend(null);
+        surface.Update(clips["wave"][0]);
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            File.WriteAllText(path + ".ready", hwnd.ToInt64().ToString(CultureInfo.InvariantCulture) + "|" + request)));
     }
     Button ActionChip(string label, string id, int group) {
         return PetBubbleStyle.Action(label, group, () => {
@@ -324,11 +353,12 @@ sealed class PetWindow : Window {
             if (stamp != loaded && File.Exists(path)) {
                 try {
                     bool office, keys;
-                    clips = DesktopPet.Read(path, out office, out keys, out legends);
+                    string request;
+                    clips = DesktopPet.Read(path, out office, out keys, out legends, out request);
                     loaded = stamp;
                     if (office != officePreset) { officePreset=office; SetOffice(office); }
                     if (keys != keysEnabled) SetKeys(keys);
-                    Start("idle");
+                    Reveal(request);
                 }
                 catch (IOException) { } // The preview may still be replacing the file.
             }

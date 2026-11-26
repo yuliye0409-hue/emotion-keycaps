@@ -6,7 +6,7 @@ const rooms=[
  {id:'stamp',room:'待办桌',scene:'admin',copy:'纸堆再乱，也会先给每件事盖个小章。'},
  {id:'nap',room:'周末窗边',scene:'weekend',copy:'今天的待办只有三件：晒太阳、喝水、不加班。'}
 ];
-const {character,colors,faces,kits,keyLegend}=KeycapArt;
+const {character,colors,faces,kits,clothes,colorParts,cleanPalette,partColors,isHex,keyLegend}=KeycapArt;
 const $=id=>document.getElementById(id);
 const replies={
  bean:{poke:'啊，书签夹哪页了？',water:'咕咚咕咚，续上这口。',sleep:'今天翻到这里，晚安。',move:'绕着笔记本跑一圈！',bonk:'轻一点啦，帽沿敲歪了。'},
@@ -83,7 +83,9 @@ try {
   state.desktopKeys=raw.desktopKeys!==false;
   const outfit=raw.outfit??raw.profiles?.[rooms[state.active].id];
   if(typeof outfit?.name==='string') state.outfit.name=outfit.name.slice(0,12);
-  for(const [key,options] of [['color',colors],['face',faces],['accessory',kits]]) {
+  if(isHex(outfit?.color))state.outfit.color=outfit.color.toLowerCase();
+  state.outfit.palette=cleanPalette(outfit?.palette);
+  for(const [key,options] of [['face',faces],['accessory',kits],['clothing',clothes]]) {
    if(options.some(([value])=>value===outfit?.[key])) state.outfit[key]=outfit[key];
   }
   for(const room of rooms) {
@@ -146,12 +148,14 @@ function render(view){
  view.room.textContent=room.room;
  if($('nickname')!==document.activeElement) $('nickname').value=p.name;
  $('room-choice').value=active;
- const preview=$('outfit-preview'),outfit=[p.color,p.face,p.accessory].join('/');
+ const preview=$('outfit-preview'),outfit=JSON.stringify([p.color,p.palette,p.face,p.accessory,p.clothing]);
  if(preview.dataset.outfit!==outfit){
   preview.innerHTML=KeycapArt.make(p,'','idle',0,true);
   preview.dataset.outfit=outfit;
  }
- document.querySelectorAll('.options button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.value===p[b.dataset.type])));
+ const selectedColor=partColors(p)[$('color-part').value];
+ document.querySelectorAll('.options button').forEach(b=>b.setAttribute('aria-pressed',
+  String(b.dataset.value===(b.dataset.type==='color'?selectedColor:p[b.dataset.type]))));
  $('diary-count').textContent=history.found?'收下了：'+sticker:'';
  $('diary').innerHTML=history.log.length?history.log.map(a=>'<li>'+(a==='special'?'在房间里收下了'+sticker+'。':entries[a])+'</li>').join(''):'<li class="empty">还没有新鲜事。</li>';
 }
@@ -217,32 +221,111 @@ function select(i){
  active=state.active=i;action='idle';started=performance.now();
  persist();paint();
 }
-function setStatus(s){
- $('desktop-status').hidden=!s;
+function setStatus(s,help=false){
+ $('desktop-notice').hidden=!s;
  $('desktop-status').textContent=s;
+ $('desktop-help').hidden=!help;
 }
 async function toDesktop(){
  if(desktopPending)return;
- if(location.protocol==='file:'){
-  setStatus('请通过本机预览打开 Windows 桌宠。');return;
+ if(location.protocol!=='http:'||!['localhost','127.0.0.1'].includes(location.hostname)){
+  setStatus('请从 Windows 本机预览打开桌宠。',true);return;
  }
  desktopPending=true;
  $('desktop').disabled=true;
- setStatus('');
+ setStatus('正在把桌宠放到桌面…');
  try{
-  const {shape,color,face,accessory}=look();
+  const {shape,color,face,accessory,clothing,palette}=look();
   const response=await fetch('./desktop',{
    method:'POST',headers:{'Content-Type':'application/json','X-Keycap-Desktop':'1'},
-   body:JSON.stringify({shape,color,face,accessory,office:state.office,desktopKeys:state.desktopKeys})
+   body:JSON.stringify({shape,color,face,accessory,clothing,palette,office:state.office,desktopKeys:state.desktopKeys})
   });
-  if(!response.ok)throw Error('desktop');
-  setStatus('桌宠已放到桌面。');
+  const result=await response.json();
+  if(!response.ok||result.ok!==true)throw Error(result.error);
+  setStatus('桌宠在当前屏幕右下角，正在向你打招呼。');
  }catch{
-  setStatus('桌宠未启动。请确认运行的是最新版 Windows 本机预览。');
+  setStatus('没能显示桌宠。请重启 Windows 本机预览后重试。',true);
  }finally{
   desktopPending=false;
   $('desktop').disabled=false;
  }
+}
+function hexToHsv(hex){
+ const [r,g,b]=hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255);
+ const v=Math.max(r,g,b),d=v-Math.min(r,g,b);
+ const sector=d===0?0:v===r?(g-b)/d:v===g?(b-r)/d+2:(r-g)/d+4;
+ return [Math.round((sector*60+360)%360)%360,Math.round((v?d/v:0)*100),Math.round(v*100)];
+}
+function hsvToHex([h,s,v]){
+ const channel=offset=>{
+  const k=(offset+h/60)%6;
+  const value=v/100*(1-s/100*Math.max(0,Math.min(k,4-k,1)));
+  return Math.round(value*255).toString(16).padStart(2,'0');
+ };
+ return '#'+channel(5)+channel(3)+channel(1);
+}
+function setupColors(){
+ const part=$('color-part'),plane=$('color-plane'),hex=$('color-hex');
+ const channels=['hue','sat','val'].map(id=>$(id));
+ part.replaceChildren(...colorParts.map(([key,label])=>new Option(label,key)));
+ let hsv;
+ function show(color,updateHex=true){
+  const [h,s,v]=hsv;
+  plane.style.setProperty('--hue',h);
+  plane.style.setProperty('--sat',s+'%');
+  plane.style.setProperty('--plane-y',(100-v)+'%');
+  channels.forEach((channel,i)=>{
+   channel.value=hsv[i];
+   $(channel.id+'-value').textContent=hsv[i]+(i===0?'°':'%');
+  });
+  if(updateHex)hex.value=color.toUpperCase();
+ }
+ function sync(){
+  const color=partColors(look())[part.value];
+  hsv=hexToHsv(color);
+  show(color);
+ }
+ function apply(color=hsvToHex(hsv),updateHex=true){
+  (state.outfit.palette??={})[part.value]=color;
+  show(color,updateHex);
+  persist();
+  paint();
+ }
+ part.onchange=()=>{sync();paint()};
+ $('color-reset').onclick=()=>{
+  if(state.outfit.palette)delete state.outfit.palette[part.value];
+  if(part.value==='shell')delete state.outfit.color;
+  sync();persist();paint();
+ };
+ channels.forEach((channel,i)=>channel.oninput=()=>{hsv[i]=+channel.value;apply()});
+ const pick=e=>{
+  const bounds=plane.getBoundingClientRect();
+  const percent=t=>Math.round(Math.max(0,Math.min(1,t))*100);
+  hsv[1]=percent((e.clientX-bounds.left)/bounds.width);
+  hsv[2]=100-percent((e.clientY-bounds.top)/bounds.height);
+  apply();
+ };
+ plane.onpointerdown=e=>{
+  if(e.button!==0)return;
+  plane.setPointerCapture(e.pointerId);
+  pick(e);
+ };
+ plane.onpointermove=e=>{if(plane.hasPointerCapture(e.pointerId))pick(e)};
+ function readHex(){
+  const value=('#'+hex.value.trim().replace(/^#/,'')).toLowerCase();
+  if(isHex(value)){hsv=hexToHsv(value);apply(value,false)}
+ }
+ hex.oninput=readHex;
+ hex.onblur=sync;
+ hex.onkeydown=e=>{
+  if(e.key==='Enter'){readHex();hex.blur()}
+ };
+ $('colors').querySelectorAll('button').forEach(button=>button.onclick=()=>{
+  const value=button.dataset.value;
+  hsv=hexToHsv(value);apply(value);
+ });
+ sync();
+ return sync;
 }
 function handleKeys(e){
  if(!e.isComposing&&!e.target.closest?.('input[type=password]')){
@@ -259,9 +342,10 @@ function init(){
  const roomChoice=$('room-choice');
  roomChoice.replaceChildren(...rooms.map(({room},index)=>new Option(room,index)));
  roomChoice.onchange=()=>select(+roomChoice.value);
- for(const [id,type,opts] of [['colors','color',colors],['faces','face',faces],['kits','accessory',kits]])$(id).innerHTML=choices(opts,type);
- document.querySelectorAll('.options button').forEach(b=>b.onclick=()=>{
-  state.outfit[b.dataset.type]=b.dataset.value;persist();paint();
+ for(const [id,type,opts] of [['colors','color',colors],['faces','face',faces],['kits','accessory',kits],['clothes','clothing',clothes]])$(id).innerHTML=choices(opts,type);
+ const syncColors=setupColors();
+ document.querySelectorAll('.options button:not([data-type=color])').forEach(b=>b.onclick=()=>{
+  state.outfit[b.dataset.type]=b.dataset.value;syncColors();persist();paint();
  });
  $('nickname').oninput=e=>{state.outfit.name=e.target.value.slice(0,12);persist();paint()};
  $('nickname').onblur=()=>{if(!$('nickname').value.trim())$('nickname').value=look().name};

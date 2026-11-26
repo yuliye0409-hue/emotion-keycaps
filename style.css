@@ -67,7 +67,11 @@ main{max-width:1224px;margin:auto;display:grid;grid-template-columns:minmax(0,1f
 .office-actions button:hover{border-color:var(--ink);background:#ffe7ba}
 .office-toggle{display:flex;align-items:center;gap:6px;width:fit-content;margin-top:13px;color:#5a5061;font-size:13px}
 .office-toggle input{accent-color:#6552ab}
-#desktop-status{font-size:13px;margin:15px 0 0;line-height:1.6}
+.desktop-control{position:relative}
+.desktop:disabled{cursor:progress}
+#desktop-notice{position:absolute;z-index:5;right:0;top:calc(100% + 9px);width:min(285px,calc(100vw - 28px));padding:8px 10px;border:1px solid var(--ink);border-radius:7px;background:#fff7df;box-shadow:0 2px var(--ink);font-size:12px;line-height:1.55}
+#desktop-help{display:block;width:fit-content;margin-top:2px;color:#504080}
+#desktop-help[hidden]{display:none}
 aside{padding:24px 17px;border-left:1px solid var(--line);min-width:0;background:#f1eee6}
 aside section+section{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
 h2{font-size:15px;margin:0 0 10px}
@@ -79,6 +83,18 @@ h2{font-size:15px;margin:0 0 10px}
 .workbench-settings{display:grid;gap:12px;padding:12px 10px 11px}
 .setting{display:grid;gap:6px;font-size:12px}
 .setting>span{font-weight:750}
+.setting-heading{display:flex;align-items:center;justify-content:space-between;font-weight:750}
+.setting-heading button{padding:4px 6px;border:1px solid var(--line);border-radius:5px;background:#fffdf7;font-size:11px}
+.color-setting{gap:7px;padding:8px;border:1px solid #d4c9b8;border-radius:8px;background:#fff6e5}
+.color-plane{position:relative;height:92px;margin:3px 0;border:1px solid var(--ink);border-radius:6px;background:linear-gradient(0deg,#000,transparent),linear-gradient(90deg,#fff,hsl(var(--hue,0) 100% 50%));cursor:crosshair;touch-action:none}
+.color-plane i{position:absolute;pointer-events:none;left:var(--sat,0%);top:var(--plane-y,0%);width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px var(--ink);transform:translate(-50%,-50%)}
+.hsv-channel{display:grid;grid-template-columns:3.3em minmax(0,1fr) 3.1em;align-items:center;gap:4px}
+.hsv-channel output{text-align:right;font-variant-numeric:tabular-nums}
+.setting .hsv-channel input{height:18px;margin:0;padding:0;accent-color:#6552ab;background:transparent}
+.setting .hsv-channel #hue{appearance:none;height:9px;border-radius:6px;background:linear-gradient(90deg,red,#ff0,#0f0,#0ff,#00f,#f0f,red)}
+#hue::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border:2px solid var(--ink);background:#fffdf7;border-radius:50%}
+#hue::-moz-range-thumb{width:11px;height:11px;border:2px solid var(--ink);background:#fffdf7;border-radius:50%}
+.hex-setting input{height:26px;font-family:monospace}
 .setting-inline{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px}
 .setting input,.setting select{min-width:0;width:100%;height:34px;border:1px solid #9e9687;background:#fffdf7;border-radius:5px;padding:0 8px}
 .room-setting{padding-top:10px;border-top:1px solid var(--line)}
@@ -90,7 +106,7 @@ h2{font-size:15px;margin:0 0 10px}
 .options button:hover{border-color:var(--ink);background:#fff1cf}
 .options button[aria-pressed=true]{background:#f0efba;border-color:var(--ink);box-shadow:0 2px var(--ink)}
 .palette button[aria-pressed=true]{background:#fffdf7}
-.expressions button{min-height:47px;gap:1px}
+.expressions button{min-height:47px;gap:1px;font-size:10px}
 .expressions svg{width:25px;height:24px;max-width:100%}
 .swatch{display:block;width:min(16px,90%);aspect-ratio:1;border:1px solid var(--ink);border-radius:5px;background:var(--swatch)}
 .diary ul{margin:0;padding:0;display:grid;gap:5px;list-style:none}

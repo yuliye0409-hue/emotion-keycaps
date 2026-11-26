@@ -12,7 +12,7 @@
   <script defer src="./app.js"></script>
 </head>
 <body>
-  <header><div class="brand"><span aria-hidden="true">✿</span><b>情绪键帽</b><small>KEYCAP CLUB</small></div><div class="header-tools"><button id="sound-toggle" class="sound" type="button" aria-pressed="false" aria-label="互动音效" title="互动音效"></button><button id="desktop" class="desktop" type="button">放到桌面 <span aria-hidden="true">↗</span></button></div></header>
+  <header><div class="brand"><span aria-hidden="true">✿</span><b>情绪键帽</b><small>KEYCAP CLUB</small></div><div class="header-tools"><button id="sound-toggle" class="sound" type="button" aria-pressed="false" aria-label="互动音效" title="互动音效"></button><div class="desktop-control"><button id="desktop" class="desktop" type="button">放到桌面 <span aria-hidden="true">↗</span></button><div id="desktop-notice" hidden><span id="desktop-status" role="status"></span><a id="desktop-help" href="https://github.com/yuliye0409-hue/emotion-keycaps#%E6%9C%AC%E6%9C%BA%E9%A2%84%E8%A7%88" target="_blank" rel="noopener" hidden>查看启动步骤 ↗</a></div></div></div></header>
   <main>
     <section class="home" aria-labelledby="room">
       <div class="room-label"><div><h1 id="room"></h1></div><div class="room-pet"><strong id="pet-name"></strong></div></div>
@@ -27,7 +27,6 @@
       </div>
       <label class="office-toggle"><input type="checkbox" id="office">启用桌宠的办公陪伴提醒</label>
       <label class="office-toggle"><input type="checkbox" id="desktop-keys">在 Windows 桌宠上显示当前按键</label>
-      <p id="desktop-status" role="status" hidden></p>
     </section>
     <aside>
       <section class="workbench" aria-labelledby="workbench-title">
@@ -35,9 +34,19 @@
         <div class="fitting-mat" id="outfit-preview" aria-hidden="true"></div>
         <div class="workbench-settings">
           <label class="setting setting-inline"><span>昵称</span><input id="nickname" maxlength="12" autocomplete="off"></label>
-          <div class="setting"><span id="color-label">帽壳颜色</span><div id="colors" class="options palette" role="group" aria-labelledby="color-label"></div></div>
+          <div class="setting color-setting">
+            <div class="setting-heading"><span>HSV 调色</span><button id="color-reset" type="button">恢复默认</button></div>
+            <label class="setting setting-inline"><span>部位</span><select id="color-part"></select></label>
+            <div id="color-plane" class="color-plane" aria-hidden="true"><i></i></div>
+            <label class="hsv-channel"><span>色相</span><input id="hue" type="range" min="0" max="359" step="1"><output id="hue-value" for="hue"></output></label>
+            <label class="hsv-channel"><span>饱和度</span><input id="sat" type="range" min="0" max="100" step="1"><output id="sat-value" for="sat"></output></label>
+            <label class="hsv-channel"><span>明度</span><input id="val" type="range" min="0" max="100" step="1"><output id="val-value" for="val"></output></label>
+            <label class="setting setting-inline hex-setting"><span>HEX</span><input id="color-hex" maxlength="7" spellcheck="false" autocomplete="off"></label>
+            <div id="colors" class="options palette" role="group" aria-label="快捷颜色"></div>
+          </div>
           <div class="setting"><span id="face-label">表情</span><div id="faces" class="options expressions" role="group" aria-labelledby="face-label"></div></div>
-          <div class="setting"><span id="kit-label">配件</span><div id="kits" class="options accessories" role="group" aria-labelledby="kit-label"></div></div>
+          <div class="setting"><span id="kit-label">配饰</span><div id="kits" class="options accessories" role="group" aria-labelledby="kit-label"></div></div>
+          <div class="setting"><span id="clothes-label">衣服</span><div id="clothes" class="options accessories" role="group" aria-labelledby="clothes-label"></div></div>
           <label class="setting setting-inline room-setting"><span>房间</span><select id="room-choice"></select></label>
         </div>
       </section>
