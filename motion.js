@@ -1,14 +1,15 @@
 (function(root) {
  const duration={poke:850,water:2450,sleep:1600,wake:1250,move:2400,bonk:1050,wave:1450,special:1150,
   lonely:2400,tears:1800,concern:3100,calm:3600,hug:1900,cheer:1500,break:2500,
-  highfive:1500,peek:1250,peekReveal:2100};
- const strawTip=[-8,-51], grip=[13,-17], sipPoint=[150,130];
+  highfive:1500,peek:1250,peekReveal:2100,cook:5600,taste:1800,read:4200,listen:4500};
+ const strawTip=[-34,-42], grip=[13,-15], sipPoint=[150,130];
  const peekBox={left:109,top:161,right:261,bottom:224};
  const clamp=t=>Math.max(0,Math.min(1,t));
  const ease=t=>{t=clamp(t);return t*t*(3-2*t)};
  const lerp=(a,b,t)=>a+(b-a)*t;
  const ramp=(t,a,b)=>ease((t-a)/(b-a));
  const peak=(t,a,b,c,d)=>ramp(t,a,b)*(1-ramp(t,c,d));
+ const cookStage=ms=>ms<duration.cook*.28?'prep':ms<duration.cook*.74?'stir':'serve';
  const actionFaces={
   move:'happy',wave:'waving',special:'excited',lonely:'sad',tears:'cry',
   concern:'concerned',calm:'relaxed',hug:'pleased',cheer:'triumph',break:'yawn'
@@ -19,7 +20,8 @@
   move:['happy','excited'],wave:['waving','wink'],special:['excited','triumph'],
   poke:['curious','pleased'],water:['quenched','relaxed'],sleep:['sleepy','dozing'],wake:['sleepy','dozing'],
   hug:['pleased','bashful'],calm:['relaxed','content'],cheer:['triumph','excited'],
-  highfive:['excited','waving'],peekReveal:['wink','happy']
+  highfive:['excited','waving'],peekReveal:['wink','happy'],
+  cook:['happy','pleased'],taste:['content','pleased'],listen:['relaxed','content']
  };
  const variantCount=action=>faceVariants[action]?.length??1;
  const tracks={round:[86,214],square:[84,216],wide:[53,247],petal:[75,225],step:[72,228],pill:[55,245]};
@@ -41,7 +43,7 @@
   const t=ms/(duration[a]||1), s=Number(p.shape==='wide'||p.shape==='pill');
   const [left,right]=tracks[p.shape]||tracks.round;
   const variantFace=faceVariants[a]?.[variant];
-  let x=0,y=0,r=0,sx=1,sy=1,smile=variantFace||actionFaces[a]||p.face,cup=null,bed=0,star=0,prop=null,tear=0,box=null;
+  let x=0,y=0,r=0,sx=1,sy=1,smile=variantFace||actionFaces[a]||p.face,cup=null,bed=0,lie=0,star=0,prop=null,tear=0,box=null;
   // The neutral pose keeps both hands low and outside the cap silhouette.
   // Action tracks below lift these anchors when the pet needs to gesture.
   const leftRest=point(left-24,174),rightRest=point(right+23,173);
@@ -53,33 +55,39 @@
    if(!reduced&&ms%4800>4650&&p.face==='dot')smile='blink';
   } else if(a==='water'){
    const lift=peak(t,.17,.44,.70,.92);
-   r=5*lift;y=1.5*lift-.55*Math.sin(t*43)*peak(t,.49,.52,.64,.69);
+   r=2*lift;y=2*lift-.55*Math.sin(t*43)*peak(t,.49,.52,.64,.69);
    const mouth=headPoint({x,y,r,sx,sy},...sipPoint);
-   const cupAngle=-10*lift;
+   const cupAngle=-3*lift;
    const [tipX,tipY]=rotate(strawTip,cupAngle);
-   const center=mix([207,207],[mouth[0]-tipX,mouth[1]-tipY],lift);
+   const center=mix([204,207],[mouth[0]-tipX,mouth[1]-tipY],lift);
    const [gripX,gripY]=rotate(grip,cupAngle);
-   cup={xy:center,r:cupAngle,grip:[center[0]+gripX,center[1]+gripY],fill:1-.58*ramp(t,.46,.69),alpha:peak(t,.015,.14,.91,.99),reach:peak(t,0,.125,.90,1)};
+   cup={xy:center,r:cupAngle,grip:[center[0]+gripX,center[1]+gripY],fill:1-.58*ramp(t,.46,.69),alpha:peak(t,.015,.14,.91,.99),reach:peak(t,.08,.26,.86,.99)};
    smile=t<.44?'curious':t<=.70?'sip':variantFace||'pleased';
   } else if(a==='sleep'||a==='wake'){
-   const lie=a==='sleep'?ramp(t,.26,.92):1-ramp(t,.16,.72);
-   const sit=peak(lie,0,.4,.47,1);
-   const stretch=a==='wake'?peak(t,.43,.72,.83,1):peak(t,0,.13,.22,.43);
-   const settle=a==='sleep'?peak(t,.68,.87,.91,1):0;
-   bed=a==='sleep'?ramp(t,.08,.33):1-ramp(t,.67,1);
-   r=81*lie+5*settle;
-   x=-4*lie-11*sit;
-   y=-9*lie+12*sit-3*stretch;
-   sx=1-.04*lie;
-   sy=1-.06*sit;
-   lh=mix(lh,point(left-24,113),stretch);
-   rh=mix(rh,point(right+24,108),stretch);
-   lh=mix(lh,point(left-12,181),lie);
-   rh=mix(rh,point(right+8,186),lie);
-   lf=mix(lf,point(122,217),lie);
-   rf=mix(rf,point(176,216),lie);
+   lie=a==='sleep'?ramp(t,.23,.85):1-ramp(t,.18,.76);
+   bed=a==='sleep'?ramp(t,.02,.35):1-ramp(t,.68,1);
+   // An elevated front view shows the pet on its back, with the cap above the quilt.
+   y=12*lie;
+   sx=1-.10*lie;
+   sy=1-.40*lie;
    smile=a==='sleep'?(t<.34?'yawn':variantFace||'sleepy'):(t<.30?variantFace||'sleepy':t<.72?'yawn':'sleepy');
-   if(a==='sleep'&&t>=1&&!reduced)sx+=.012*(1-Math.cos((ms-duration.sleep)*Math.PI/600));
+  } else if(a==='cook'){
+   const stage=cookStage(ms);
+   const active=peak(t,0,.16,.88,1);
+   const stir=stage==='stir'?Math.sin(ms/115)*peak(t,.28,.35,.69,.74):0;
+   y=2*active-3*stir;r=-2.5*stir;
+   lh=mix(lh,[left-2,144],active);
+   rh=mix(rh,[right+1,139+11*stir],active);
+   smile=stage==='prep'?'curious':stage==='stir'?'focus':variantFace||'pleased';
+   prop={kind:'cook',stage,phase:ms,alpha:peak(t,0,.12,.91,1)};
+  } else if(a==='taste'||a==='read'||a==='listen'){
+   const active=peak(t,0,.22,.71,1);
+   const beat=Math.sin(ms/(a==='taste'?95:370));
+   r=(a==='listen'?4:2)*active*beat;
+   y=(a==='taste'?2*beat:-2)*active;
+   smile=a==='read'?(t<.73?'focus':'pleased'):variantFace||'content';
+   if(a==='read')prop={kind:'book',alpha:active,phase:ms};
+   if(a==='listen')prop={kind:'music',alpha:active,phase:ms};
   } else if(a==='move'){
    const ready=peak(t,0,.08,.1,.22), run=peak(t,.12,.24,.77,.89), stop=peak(t,.81,.91,.93,1);
    const beat=(t-.12)*Math.PI*9;
@@ -158,9 +166,9 @@
    const hand=point(left-31+8*Math.sin(t*24),93+5*Math.cos(t*24));
    lh=mix(lh,hand,up);r=-3*up;y=-2*up;
   }
-  return {x,y,r,sx,sy,smile,cup,bed,box,star,lh,rh,lf,rf,left,right,prop,tear,handsUp};
+  return {x,y,r,sx,sy,smile,cup,bed,lie,box,star,lh,rh,lf,rf,left,right,prop,tear,handsUp};
  }
- const api={pose,duration,variantCount,headPoint,localPoint,rotate,strawTip,sipPoint,peekBox};
+ const api={pose,duration,variantCount,headPoint,localPoint,rotate,strawTip,sipPoint,peekBox,cookStage};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  else root.KeycapMotion=api;
 })(typeof globalThis==='undefined'?this:globalThis);

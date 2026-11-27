@@ -28,7 +28,24 @@ main{max-width:1224px;margin:auto;display:grid;grid-template-columns:minmax(0,1f
 .room-label h1{font-size:31px;margin:5px 0 0;line-height:1.14}
 .room-pet{text-align:right;overflow-wrap:anywhere}
 .room-pet strong{font-size:15px}
+#current-room{margin-right:11px;font-size:13px;color:#665670}
+.home-rooms{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 11px}
+.home-rooms button,.kitchen-actions button{border:1px solid #bcb1bf;border-radius:6px;background:#fffdf6;padding:6px 14px;font-size:13px;font-weight:700}
+.home-rooms button:hover,.kitchen-actions button:hover:not(:disabled){border-color:var(--ink);background:#ffefd3}
+.home-rooms button[aria-current=true]{color:#33234d;border-color:#65518c;background:#eae0fa;box-shadow:0 2px #65518c}
+.kitchen-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+.kitchen-actions #taste{background:#cde5d4;border-color:#658671}
+.kitchen-actions button:disabled,.actions button:disabled{opacity:.6;cursor:default}
 .world{position:relative;aspect-ratio:800/520;background:#c3dffd;overflow:hidden;border:2px solid var(--ink);border-radius:8px;isolation:isolate;container-type:inline-size}
+.world[data-renderer="3d"]{min-height:380px;aspect-ratio:1.62;background:#f4eee5;border:0;border-radius:0}
+.world[data-renderer="3d"]>:not(.house-layer){display:none}
+.house-layer,.house-layer canvas{width:100%;height:100%;position:absolute;inset:0;display:block}
+.house-layer canvas{touch-action:none;cursor:grab;outline-offset:-4px}
+.house-layer canvas:active{cursor:grabbing}
+.house-tools{position:absolute;z-index:2;display:flex;gap:4px;top:9px;right:9px}
+.house-tools button{width:34px;height:34px;display:grid;place-items:center;padding:7px;border:1px solid #b09ca9;border-radius:5px;background:#fff8e9;color:#473552}
+.house-tools button:hover,.house-tools button[aria-pressed=true]{background:#e8dcf6;border-color:#705e88}
+.house-tools svg{width:100%;height:100%}
 .room-art,.scene,.night,.room-effect{position:absolute;inset:0;width:100%;height:100%;display:block}
 .night,.room-effect{pointer-events:none}
 .night{background:#25294c;opacity:0;transition:opacity .45s}
@@ -39,7 +56,7 @@ main{max-width:1224px;margin:auto;display:grid;grid-template-columns:minmax(0,1f
 .pet-hit svg{width:100%;height:100%;overflow:visible;display:block}
 .box-hit{position:absolute;z-index:2;left:var(--box-left);top:calc(60% + 100cqw * var(--box-top));width:var(--box-width);height:calc(100cqw * var(--box-height));border:0;border-radius:7px;padding:0;background:transparent;touch-action:manipulation}
 .box-hit:hover{background:#fff3cb20}
-.story-prop{position:absolute;z-index:1;left:74%;top:73%;width:clamp(28px,7%,48px);aspect-ratio:1;translate:-50% -50%;border:2px solid var(--ink);border-radius:7px;box-shadow:0 3px var(--ink);background:#ffebaa;display:grid;place-items:center;line-height:1;font-size:22px;font-weight:bold}
+.story-prop{position:absolute;z-index:1;left:var(--prop-x,74%);top:var(--prop-y,73%);width:clamp(28px,7%,48px);aspect-ratio:1;translate:-50% -50%;border:2px solid var(--ink);border-radius:7px;box-shadow:0 3px var(--ink);background:#ffebaa;display:grid;place-items:center;line-height:1;font-size:22px;font-weight:bold}
 .story-prop:hover{background:#fffbd9;transform:translateY(-3px)}
 .story-prop:active{transform:translateY(2px);box-shadow:0 1px var(--ink)}
 .story-prop span{display:grid;place-items:center;width:65%;height:65%}
@@ -48,6 +65,11 @@ main{max-width:1224px;margin:auto;display:grid;grid-template-columns:minmax(0,1f
 .world[data-room=studio] .story-prop{background:#f4a9c2}
 .world[data-room=office] .story-prop{background:#c7e2f0}
 .world[data-room=weekend] .story-prop{background:#ffe086}
+.world[data-room=living] .story-prop{background:#f4d4a8}
+.world[data-room=kitchen] .story-prop{background:#d7e8b9}
+.world[data-room=bedroom] .story-prop{background:#ecdae9}
+.world[data-room=kitchen][data-action=cook] .story-prop{opacity:.55;cursor:default}
+.world[data-room=kitchen] .story-prop[data-plate]{background:#fff1c5}
 .room-effect span{position:absolute;left:74%;top:62%;display:grid;place-items:center;width:34px;height:34px;border:2px solid var(--ink);border-radius:5px;background:#fff5c5;animation:token 2s ease-out both}
 .room-effect svg{width:23px;height:23px}
 .world[data-action=special][data-room=weekend] .room-effect{background:linear-gradient(132deg,transparent 38%,#ffec8b66 39%,#ffefb888 63%,transparent 64%);animation:glow 2.8s ease-out both}
@@ -131,4 +153,6 @@ h2{font-size:15px;margin:0 0 10px}
 @media(max-width:850px){main{grid-template-columns:minmax(0,1fr) 247px}.home{padding:17px 14px}aside{padding:17px 12px}.actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.actions button{font-size:12px}.actions svg{width:15px;height:15px}}
 @media(max-width:660px){header{height:52px;padding-inline:12px}.brand b{font-size:16px}.brand small{font-size:8px}.brand,.header-tools{gap:7px}.desktop{padding-inline:7px;font-size:12px}.sound{width:31px}main{display:block}.home{padding:14px 11px 17px}.room-label h1{font-size:24px}.world{aspect-ratio:1.26}.pet-hit{width:42%}aside{border-left:0;border-top:1px solid var(--line);padding:16px 12px 24px}}
 @media(max-width:370px){.brand small{display:none}}
+@media(max-width:660px){.world:is([data-room=living],[data-room=kitchen],[data-room=bedroom]){aspect-ratio:800/520}}
+@media(max-width:660px){.world[data-renderer="3d"]{aspect-ratio:1.12;min-height:310px}.house-tools{top:6px;right:6px}.house-tools button{width:32px;height:32px}}
 @media(prefers-reduced-motion:reduce){.pet-hit *,.room-effect,.room-effect span{animation:none!important}.night{transition:none}}

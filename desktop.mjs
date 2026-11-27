@@ -19,7 +19,8 @@ let built, child;
 let queue = Promise.resolve();
 
 export function framePack(pet,request='',reveal=true) {
-  const clips = [['idle',144],...Object.entries(duration).filter(([k])=>k!=='special').map(([k, ms])=>[k,Math.ceil(ms*.03)+(k==='sleep'?36:1)])];
+  const webActions=new Set(['special','cook','taste','read','listen']);
+  const clips = [['idle',144],...Object.entries(duration).filter(([k])=>!webActions.has(k)).map(([k, ms])=>[k,Math.ceil(ms*.03)+(k==='sleep'?36:1)])];
   const {legend:legendColor}=art.partColors(pet);
   const legends='<legends>'+art.keyLabels.map(label=>art.legend(label,legendColor)).join('')+'</legends>';
   const boxBounds=[peekBox.left,peekBox.top,peekBox.right-peekBox.left,peekBox.bottom-peekBox.top].join(' ');

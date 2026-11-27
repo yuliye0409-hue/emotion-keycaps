@@ -20,15 +20,33 @@ test('the straw meets the mouth throughout both sip variants',()=>{
   }
 });
 
-test('sleep settles into a side-lying pose and wake starts there',()=>{
+test('sleep lies centered under the quilt and wake starts in that same pose',()=>{
   for(let variant=0;variant<motion.variantCount('sleep');variant++){
     const asleep=pose('sleep',1,variant);
     const waking=pose('wake',0,variant);
     const [headX,headY]=motion.headPoint(asleep,150,32);
     const [feetX,feetY]=motion.headPoint(asleep,150,208);
-    assert.ok(Math.abs(headX-feetX)>150 && Math.abs(headY-feetY)<30);
-    assert.deepEqual([waking.r,waking.x,waking.y,waking.smile],[asleep.r,asleep.x,asleep.y,asleep.smile]);
-    assert.equal(pose('wake',1,variant).r,0);
+    assert.equal(headX,feetX);
+    assert.ok(headY>80 && headY<110 && feetY>175 && feetY<215);
+    assert.deepEqual(waking,asleep);
+    assert.equal(pose('wake',1,variant).lie,0);
+    const svg=art.make(pet,'Kali','sleep',motion.duration.sleep,true,variant);
+    assert.ok(svg.indexOf('class="sleep-mattress"')<svg.indexOf('class="head"'));
+    assert.ok(svg.indexOf('class="head"')<svg.indexOf('class="sleep-quilt"'));
+  }
+});
+
+test('special star eyes replace the pupils and sip frames keep a filled mitt',()=>{
+  const custom={...pet,palette:{pupils:'#010203',arms:'#302419',hands:'#ac4123'}};
+  const paint=art.partColors(custom);
+  for(const id of ['excited','sparkle']){
+    const face=art.expression(id,paint);
+    assert.match(face,/fill="#ffce52"/);
+    assert.doesNotMatch(face,/#010203|<ellipse|<circle/);
+  }
+  for(const fraction of [.20,.37,.55,.76,.90]){
+    const svg=art.make(custom,'Kali','water',motion.duration.water*fraction);
+    assert.match(svg,/class="drinking-mitt"><path[^>]+fill="#302419"\/><path[^>]+fill="#ac4123"/);
   }
 });
 

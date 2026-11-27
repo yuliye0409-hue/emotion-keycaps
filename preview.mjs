@@ -9,6 +9,12 @@ const routes = new Map([
   ['/art.js','text/javascript; charset=utf-8'],
   ['/motion.js','text/javascript; charset=utf-8'],
   ['/app.js','text/javascript; charset=utf-8'],
+  ['/home.js','text/javascript; charset=utf-8'],
+  ['/house-layout.mjs','text/javascript; charset=utf-8'],
+  ['/house-pet.mjs','text/javascript; charset=utf-8'],
+  ['/house-scene.mjs','text/javascript; charset=utf-8'],
+  ['/kali-model.mjs','text/javascript; charset=utf-8'],
+  ['/vendor/three.module.min.js','text/javascript; charset=utf-8'],
   ['/favicon.svg','image/svg+xml'],
 ]);
 const port = Number(process.argv[2] || 4178);

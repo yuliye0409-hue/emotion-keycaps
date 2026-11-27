@@ -4,7 +4,8 @@ const rooms=[
  {id:'echo',room:'夜间终端',scene:'code',copy:'蓝紫色终端亮着，咔粒朝你眨了眨眼。'},
  {id:'petal',room:'灵感工作室',scene:'studio',copy:'把色卡当宝物。卡住的时候，它会先做个鬼脸。'},
  {id:'stamp',room:'待办桌',scene:'admin',copy:'纸堆再乱，也会先给每件事盖个小章。'},
- {id:'nap',room:'周末窗边',scene:'weekend',copy:'今天的待办只有三件：晒太阳、喝水、不加班。'}
+ {id:'nap',room:'周末窗边',scene:'weekend',copy:'今天的待办只有三件：晒太阳、喝水、不加班。'},
+ ...KeycapHome.rooms
 ];
 const {character,colors,faces,kits,colorParts,cleanPalette,partColors,isHex,keyLegend}=KeycapArt;
 const $=id=>document.getElementById(id);
@@ -71,12 +72,14 @@ const officeReplies={
  concern:'我在听。要是想停一下，我给你举牌。',
  highfive:'啪！这一掌，给今天努力的你。',
  peek:'等我藏好……',
- peekReveal:'被你找到啦！'
+ peekReveal:'被你找到啦！',
+ listen:'这张唱片我很喜欢。你可以忙你的，我在这里听。',
+ read:'给你留了半张桌子。我翻两页，你做你的事。'
 };
-const entries={poke:'戳了戳帽沿。',water:'喝了一口水。',sleep:'枕着小枕头打了个盹。',wake:'醒来伸了个懒腰。',move:'跑了几步。',bonk:'帽沿被轻轻按了一下。',wave:'打了个招呼。',hug:'抱了一下。',calm:'一起做了一次深呼吸。',cheer:'为一件小事庆祝。',break:'伸了个懒腰。',concern:'举了一下暂停牌。',highfive:'击了个掌。',peek:'玩了一次躲猫猫。'};
+const entries={poke:'戳了戳帽沿。',water:'喝了一口水。',sleep:'钻进被窝打了个盹。',wake:'从被窝里坐了起来。',move:'跑了几步。',bonk:'帽沿被轻轻按了一下。',wave:'打了个招呼。',hug:'抱了一下。',calm:'一起做了一次深呼吸。',cheer:'为一件小事庆祝。',break:'伸了个懒腰。',concern:'举了一下暂停牌。',highfive:'击了个掌。',peek:'玩了一次躲猫猫。',listen:'一起听了张唱片。',read:'陪你读了两页。',soup:'煮了一锅南瓜浓汤。',toast:'做了一盘果酱吐司。',taste:'一起尝了今天的小点。'};
 const keyMap={Space:'move',KeyH:'wave',KeyW:'water',KeyS:'sleep',KeyB:'bonk',KeyE:'special'};
 const storeKey='keycap-club-2d-v2';
-const state={active:0,sound:false,office:false,desktopKeys:true,outfit:{},rooms:{}};
+const state={active:rooms.findIndex(room=>room.id==='living'),sound:false,office:false,desktopKeys:true,outfit:{},rooms:{}};
 try {
  const raw=JSON.parse(localStorage.getItem(storeKey)||'null');
  if(raw&&typeof raw==='object') {
@@ -101,7 +104,9 @@ try {
 let active=state.active,action='idle',timer,audio,desktopPending=false;
 let faceVariant=0,peekReady=false;
 let started=performance.now(),frameTime=0,visiblePet;
+let doingAmbient=false,nextAmbient=started+7000,cookStage='',currentDish='soup',servedDish=null,finishedLine='';
 let currentKey=character.key,keyTimer;
+let house;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const roomHistory=()=>state.rooms[rooms[active].id]??={log:[],found:false};
 const look=()=>({...character,...state.outfit,name:state.outfit.name?.trim()||character.name});
@@ -133,20 +138,103 @@ function renderOptions(p){
 function setupWorld(node){
  node.innerHTML='<div class="room-art"></div><div class="night"></div><button class="story-prop" type="button"><span></span></button><button class="pet-hit" type="button"></button><button class="box-hit" type="button" aria-label="打开纸箱找咔粒" hidden></button><div class="room-effect" aria-hidden="true"></div>';
  node.querySelector('.pet-hit').onclick=()=>act('poke');
- node.querySelector('.story-prop').onclick=()=>act('special');
+ node.querySelector('.story-prop').onclick=()=>{
+  if(rooms[active].id==='kitchen'&&servedDish)act('taste');
+  else runRoomAction();
+ };
  const box=node.querySelector('.box-hit'),{left,top,right,bottom}=KeycapMotion.peekBox;
  box.style.cssText='--box-left:'+(32.5+left/300*35)+'%;--box-width:'+((right-left)/300*35)+'%;--box-top:'+((top-124.5)/300*.35)+';--box-height:'+((bottom-top)/300*.35);
  box.onclick=()=>act('peekReveal');
 }
+async function setupHouse(){
+ if(location.protocol==='file:')return;
+ const {world}=mainView;
+ const layer=document.createElement('div');
+ layer.className='house-layer';
+ layer.innerHTML='<canvas tabindex="0" aria-label="咔粒的三维家。方向键移动，点击地面走过去，拖动转动镜头。"></canvas><div class="house-tools" role="group" aria-label="镜头控制"></div>';
+ const views=[
+  ['overview','看整间屋子','M3 10 12 3l9 7M5 9v11h14V9M9 20v-6h6v6'],
+  ['portrait','近看咔粒','M4 8V4h4m8 0h4v4m0 8v4h-4m-8 0H4v-4M9 10h.01M15 10h.01M9 14q3 3 6 0'],
+  ['three-quarter','四分之三视角','M4 8l8-4 8 4v8l-8 4-8-4V8Zm0 0 8 4 8-4m-8 4v8'],
+  ['left','向左转镜头','M3 12a9 9 0 1 1 4 7M3 6v6h6'],
+  ['right','向右转镜头','M21 12a9 9 0 1 0-4 7m4-13v6h-6'],
+  ['in','拉近','M12 5v14M5 12h14'],
+  ['out','拉远','M5 12h14']
+ ];
+ const controls=layer.lastElementChild;
+ for(const [cmd,label,path] of views){
+  const b=document.createElement('button');
+  b.type='button';b.dataset.view=cmd;b.title=label;b.setAttribute('aria-label',label);
+  if(cmd==='overview'||cmd==='portrait')b.setAttribute('aria-pressed','false');
+  b.innerHTML=drawnIcon(path);controls.append(b);
+ }
+ try{
+  const {createHouse}=await import('./house-scene.mjs');
+  world.append(layer);
+  const initial=rooms[active].scene in KeycapHome.ambient?rooms[active].scene:'living';
+  house=createHouse(layer.firstElementChild,{
+   initial,
+   state(now){
+    const {elapsed,sample}=samplePose(now),p={...visiblePet,key:currentKey,dish:currentDish};
+    return {pet:p,action,elapsed,reduced:reduced.matches,pose:KeycapMotion.pose(p,action,sample,reduced.matches,faceVariant)};
+   },
+   enter(id){select(rooms.findIndex(room=>room.scene===id))},
+   poke:()=>act('poke'),
+   reveal:()=>act('peekReveal'),
+   interact(id){
+    if(id==='study')act('special');
+    else if(id==='kitchen'&&servedDish)act('taste');
+    else runRoomAction();
+   }
+  });
+  for(const b of controls.children)b.onclick=()=>{
+   const mode=house.command(b.dataset.view);
+   for(const control of controls.querySelectorAll('[aria-pressed]'))control.setAttribute('aria-pressed',String(control.dataset.view===mode));
+  };
+  world.dataset.renderer='3d';
+  $('home-rooms').hidden=true;
+  $('room-choice').closest('label').hidden=true;
+  $('current-room').hidden=false;
+  if(initial!==rooms[active].scene)select(rooms.findIndex(room=>room.scene===initial));
+  paint();
+ }catch(error){
+  house?.dispose();house=undefined;layer.remove();
+  console.warn('3D house unavailable; using the illustrated room.',error);
+ }
+}
 function setupActions(node){
  node.innerHTML=actions.map(([a,i,n])=>'<button type="button" data-action="'+a+'">'+icon(i)+'<span>'+n+'</span></button>').join('');
- node.querySelectorAll('button').forEach(b=>b.onclick=()=>act(b.dataset.action));
+ node.querySelectorAll('button').forEach(b=>b.onclick=b.dataset.action==='special'?runRoomAction:()=>act(b.dataset.action));
+}
+function runRoomAction(){
+ const {id}=rooms[active];
+ if(id==='kitchen')return orderDish('soup');
+ act(KeycapHome.primary[id]?.action??'special');
+}
+function orderDish(dish){
+ if(action==='cook')return;
+ currentDish=dish;
+ act('cook');
+}
+function roomMessage(room,customReply){
+ if(peekReady)return '藏好啦！点一下纸箱，把咔粒找出来。';
+ if(action==='idle'||doingAmbient)return finishedLine||(room.id==='kitchen'&&servedDish?KeycapHome.servedLine(servedDish):room.copy);
+ if(action==='cook')return KeycapHome.dishes[currentDish][cookStage];
+ if(action==='taste')return KeycapHome.dishes[servedDish].taste;
+ if(action==='special')return customReply;
+ if(action==='wave')return '嗨，在呢。';
+ if(action==='wake')return '唔……早啊。';
+ return officeReplies[action]??replies[room.id]?.[action]??replies.nap[action]??room.copy;
 }
 function render(view){
- const p=look(),room=rooms[active],history=roomHistory(),[task,specialReply,sticker,symbol]=specials[active];
+ const p=look(),room=rooms[active],history=roomHistory();
+ const primary=KeycapHome.primary[room.id];
+ const [task,specialReply,sticker,symbol]=primary
+  ? [primary.action==='sleep'&&action==='sleep'?'轻轻叫醒':primary.label,'','',primary.icon]
+  : specials[active];
  if(view.world.dataset.room!==room.scene){
   view.world.dataset.room=room.scene;
-  view.world.querySelector('.room-art').innerHTML=sceneArt(room);
+  view.world.querySelector('.room-art').innerHTML=primary?KeycapHome.scene(room.scene):sceneArt(room);
  }
  view.world.dataset.action=action;
  const hit=view.world.querySelector('.pet-hit');
@@ -157,9 +245,14 @@ function render(view){
  visiblePet=p;
  drawPose(hit,performance.now());
  const prop=view.world.querySelector('.story-prop');
- prop.setAttribute('aria-label',task);
- prop.title=task;
- prop.firstElementChild.innerHTML=drawnIcon(symbol);
+ const plate=room.id==='kitchen'&&servedDish&&action!=='cook';
+ prop.setAttribute('aria-label',plate?'品尝'+KeycapHome.dishes[servedDish].name:task);
+ prop.title=prop.getAttribute('aria-label');
+ prop.style.setProperty('--prop-x',(primary?.x??74)+'%');
+ prop.style.setProperty('--prop-y',(primary?.y??73)+'%');
+ prop.disabled=action==='cook'||action==='taste';
+ prop.toggleAttribute('data-plate',Boolean(plate));
+ prop.firstElementChild.innerHTML=drawnIcon(plate?KeycapHome.plateIcon[servedDish]:symbol);
  const effect=view.world.querySelector('.room-effect');
  effect.replaceChildren();
  if(action==='special'){
@@ -167,13 +260,26 @@ function render(view){
   item.innerHTML=drawnIcon(symbol);
   effect.append(item);
  }
- view.message.textContent=peekReady?'藏好啦！':action==='idle'?room.copy:action==='special'?specialReply:action==='wave'?'嗨，在呢。':action==='wake'?'唔……早啊。':officeReplies[action]??replies[room.id][action];
+ const message=roomMessage(room,specialReply);
+ if(view.message.textContent!==message)view.message.textContent=message;
  $('peek-action').textContent=peekReady?'找咔粒':'躲猫猫';
- view.actions.querySelector('[data-action=special] span').textContent=task;
+ const roomAction=view.actions.querySelector('[data-action=special]');
+ roomAction.hidden=room.id==='bedroom';
+ roomAction.disabled=action==='cook';
+ roomAction.querySelector('span').textContent=task;
  view.actions.querySelector('[data-action=sleep] span').textContent=action==='sleep'?'叫醒':'睡觉';
  view.actions.querySelector('[data-action=sleep]').setAttribute('aria-pressed',String(action==='sleep'));
  view.name.textContent=p.name;
- view.room.textContent=room.room;
+ view.room.textContent=KeycapHome.tabs.includes(room.id)?'咔粒的家':room.room;
+ $('current-room').textContent=room.room;
+ for(const tab of $('home-rooms').children){
+  if(+tab.dataset.roomIndex===active)tab.setAttribute('aria-current','true');
+  else tab.removeAttribute('aria-current');
+ }
+ $('kitchen-actions').hidden=room.id!=='kitchen';
+ $('kitchen-actions').querySelector('[data-dish=toast]').disabled=action==='cook';
+ $('taste').hidden=!servedDish||action==='cook';
+ $('taste').disabled=action==='taste';
  if($('nickname')!==document.activeElement) $('nickname').value=p.name;
  $('room-choice').value=active;
  const preview=$('outfit-preview'),outfit=JSON.stringify([p.color,p.palette,p.face,p.accessory]);
@@ -185,18 +291,23 @@ function render(view){
  const selectedColor=partColors(p)[$('color-part').value];
  document.querySelectorAll('.options button').forEach(b=>b.setAttribute('aria-pressed',
   String(b.dataset.value===(b.dataset.type==='color'?selectedColor:p[b.dataset.type]))));
- $('diary-count').textContent=history.found?'收下了：'+sticker:'';
+ $('diary-count').textContent=history.found&&sticker?'收下了：'+sticker:'';
  $('diary').innerHTML=history.log.length?history.log.map(a=>'<li>'+(a==='special'?'在房间里收下了'+sticker+'。':entries[a])+'</li>').join(''):'<li class="empty">还没有新鲜事。</li>';
 }
 const mainView={world:$('world'),name:$('pet-name'),room:$('room'),message:$('message'),actions:$('actions')};
 function paint(){render(mainView)}
-function drawPose(hit,now){
+function samplePose(now){
  const elapsed=Math.max(0,now-started);
  const duration=KeycapMotion.duration[action]||0;
  const sample=reduced.matches
-  ? action==='sleep'||action==='peek'?duration:duration*(action==='peekReveal'?.44:.55)
+  ? action==='sleep'||action==='peek'?duration:duration*(action==='peekReveal'?.44:action==='cook'?{prep:.16,stir:.5,serve:.83}[cookStage]:.55)
   : action==='peek'?Math.min(elapsed,duration):elapsed;
- hit.innerHTML=KeycapArt.make({...visiblePet,key:currentKey},visiblePet.name,action,sample,reduced.matches,faceVariant);
+ return {elapsed,sample};
+}
+function drawPose(hit,now){
+ if(house)return;
+ const {sample}=samplePose(now);
+ hit.innerHTML=KeycapArt.make({...visiblePet,key:currentKey,dish:currentDish},visiblePet.name,action,sample,reduced.matches,faceVariant);
 }
 function showKey(label){
  clearTimeout(keyTimer);
@@ -205,6 +316,19 @@ function showKey(label){
  if(label!==character.key)keyTimer=setTimeout(()=>showKey(character.key),1800);
 }
 function animate(now){
+ if(action==='idle'&&now>=nextAmbient&&!document.hidden&&!house?.busy()){
+  nextAmbient=now+48000;
+  const routine=KeycapHome.ambient[rooms[active].scene];
+  if(routine&&!reduced.matches)act(routine,{ambient:true});
+ }
+ if(action==='cook'){
+  const stage=KeycapMotion.cookStage(now-started);
+  if(stage!==cookStage){
+   cookStage=stage;
+   mainView.message.textContent=roomMessage(rooms[active]);
+   if(reduced.matches)drawPose($('world').querySelector('.pet-hit'),now);
+  }
+ }
  const step=action==='idle'||action==='sleep'?60:32;
  if(!reduced.matches&&!(action==='peek'&&peekReady)&&now-frameTime>=step){
   frameTime=now;drawPose($('world').querySelector('.pet-hit'),now);
@@ -221,7 +345,7 @@ function playTone(a){
  try{
   audio??=new AudioContext();
   if(audio.state==='suspended')audio.resume().catch(()=>{});
-  const notes={poke:[240,360],water:[440,560,660],sleep:[230,170],move:[270,370,480],bonk:[115,74],special:[390,490,660],wake:[240,450],wave:[330,470],hug:[360,480],calm:[260,220],cheer:[320,480,600],break:[280,420],concern:[240,290],highfive:[360,600],peek:[300,240],peekReveal:[360,540,680]}[a];
+  const notes={poke:[240,360],water:[440,560,660],sleep:[230,170],move:[270,370,480],bonk:[115,74],special:[390,490,660],wake:[240,450],wave:[330,470],hug:[360,480],calm:[260,220],cheer:[320,480,600],break:[280,420],concern:[240,290],highfive:[360,600],peek:[300,240],peekReveal:[360,540,680],cook:[290,360],taste:[392,523],read:[340],listen:[262,330,392,330]}[a];
   notes.forEach((n,i)=>{
    const t=audio.currentTime+i*.085,o=audio.createOscillator(),g=audio.createGain();
    o.type=a==='bonk'?'triangle':'sine';
@@ -231,34 +355,58 @@ function playTone(a){
   });
  }catch{/* Audio is optional. */}
 }
-function act(a){
+function act(a,{ambient=false}={}){
+ if(a==='taste'&&!servedDish)return;
  if(a==='peek'&&peekReady)a='peekReveal';
  if(a==='peekReveal'&&!peekReady)return;
  if(action==='sleep'&&(a==='poke'||a==='sleep'))a='wake';
- if(action===a)return;
+ if(action===a&&!doingAmbient)return;
+ if(!ambient)house?.stop();
  const retainFace=a==='wake'&&action==='sleep';
  const revealFromBox=a==='peekReveal'&&document.activeElement===mainView.world.querySelector('.box-hit');
  clearTimeout(timer);
  action=a;
+ doingAmbient=ambient;
+ if(!ambient){
+  finishedLine='';
+  nextAmbient=performance.now()+16000;
+ }
+ if(a==='cook')cookStage='prep';
  peekReady=a==='peek'&&reduced.matches;
  if(!retainFace)faceVariant=Math.floor(Math.random()*KeycapMotion.variantCount(a));
  started=performance.now();
  const prefs=roomHistory();
- if(a==='special')prefs.found=true;
- if(a!=='peek')prefs.log=[a==='peekReveal'?'peek':a,...prefs.log].slice(0,4);
- persist();
+ if(!ambient){
+  if(a==='special')prefs.found=true;
+  if(!['peek','cook','taste'].includes(a))prefs.log=[a==='peekReveal'?'peek':a,...prefs.log].slice(0,4);
+  persist();
+ }
  paint();
  if(revealFromBox)$('peek-action').focus({preventScroll:true});
- playTone(a);
+ if(!ambient)playTone(a);
  if(a==='peek'&&!peekReady)timer=setTimeout(()=>{
   peekReady=true;paint();
  },KeycapMotion.duration.peek);
- else if(a!=='sleep'&&a!=='peek')timer=setTimeout(()=>{action='idle';started=performance.now();paint()},a==='special'?3200:KeycapMotion.duration[a]+240);
+ else if(a!=='sleep'&&a!=='peek')timer=setTimeout(()=>{
+  if(a==='cook'){
+   servedDish=currentDish;
+   prefs.log=[servedDish,...prefs.log].slice(0,4);
+   persist();
+  }
+  if(a==='taste'){
+   finishedLine=KeycapHome.dishes[servedDish].taste;
+   servedDish=null;
+   prefs.log=['taste',...prefs.log].slice(0,4);
+   persist();
+  }
+  action='idle';doingAmbient=false;started=performance.now();paint();
+ },a==='special'?3200:KeycapMotion.duration[a]+240);
 }
 function select(i){
  if(i===active)return;
  clearTimeout(timer);
  active=state.active=i;action='idle';peekReady=false;started=performance.now();
+ doingAmbient=false;finishedLine='';nextAmbient=started+4500;
  persist();paint();
 }
 function setStatus(s,help=false){
@@ -384,16 +532,38 @@ function handleKeys(e){
   const label=keyLegend(e.code);
   if(label)showKey(label);
  }
- const a=keyMap[e.code];
+ const a=house&&['KeyW','KeyS'].includes(e.code)?null:keyMap[e.code];
  if(!a||e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return;
  if(e.target.closest?.('input,textarea,[contenteditable],select'))return;
  if(e.code==='Space'&&e.target.closest?.('button:focus-visible,a:focus-visible'))return;
- e.preventDefault();act(a);
+ e.preventDefault();
+ if(a==='special')runRoomAction();
+ else act(a);
 }
 function init(){
  const roomChoice=$('room-choice');
- roomChoice.replaceChildren(...rooms.map(({room},index)=>new Option(room,index)));
+ const group=(label,ids)=>{
+  const part=document.createElement('optgroup');
+  part.label=label;
+  part.append(...ids.map(id=>{
+   const i=rooms.findIndex(room=>room.id===id);
+   return new Option(rooms[i].room,i);
+  }));
+  return part;
+ };
+ roomChoice.replaceChildren(group('咔粒的家',KeycapHome.tabs),group('其他场景',rooms.filter(room=>!KeycapHome.tabs.includes(room.id)).map(room=>room.id)));
  roomChoice.onchange=()=>select(+roomChoice.value);
+ $('home-rooms').replaceChildren(...KeycapHome.tabs.map(id=>{
+  const index=rooms.findIndex(room=>room.id===id);
+  const button=document.createElement('button');
+  button.type='button';
+  button.dataset.roomIndex=index;
+  button.textContent=rooms[index].room;
+  button.onclick=()=>select(index);
+  return button;
+ }));
+ $('kitchen-actions').querySelector('[data-dish=toast]').onclick=()=>orderDish('toast');
+ $('taste').onclick=()=>act('taste');
  for(const [id,type,opts] of [['colors','color',colors],['faces','face',faces],['kits','accessory',kits]])$(id).innerHTML=choices(opts,type);
  $('face-count').textContent=faces.length;
  const syncColors=setupColors();
@@ -412,6 +582,6 @@ function init(){
  document.querySelectorAll('.office-actions button').forEach(b=>b.onclick=()=>act(b.dataset.action));
  window.addEventListener('keydown',handleKeys);
  window.addEventListener('blur',()=>showKey(character.key));
- setupWorld(mainView.world);setupActions(mainView.actions);soundButton();paint();requestAnimationFrame(animate);
+ setupWorld(mainView.world);setupActions(mainView.actions);soundButton();paint();requestAnimationFrame(animate);setupHouse();
 }
 init();

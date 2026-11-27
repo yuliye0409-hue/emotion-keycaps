@@ -85,7 +85,9 @@
   const angryEyes=outlined('M105 96L145 106Q139 124 123 123Q109 121 105 96ZM157 107L193 98Q194 118 180 123Q164 127 157 107Z',cream)+pupil(128,112,4,5)+pupil(176,112,4,5);
   const spiral=line('M130 112q-8 6-13-1-7-10 5-17 17-8 23 7 5 17-14 23m47-14q-7 6-11 0-6-9 4-15 14-7 20 6 4 14-12 23',3.9);
   const tear=outlined('M111 119q-11 13-7 19 5 7 12 0 4-5-5-19Z','#8cdcff',2.3);
-  const glints=fill('M126 90l3 10 10 4-10 4-3 10-4-10-9-4 9-4ZM177 95l3 8 8 3-8 3-3 9-3-9-8-3 8-3Z','#ffce52');
+  const gazeStars=(shape)=>'<g class="gaze-pupil">'+outlined(shape,'#ffce52',1.45)+'</g>';
+  const starEyes=roundEyes+gazeStars(
+    'M120 90l4.4 9.1 10 1.4-7.2 7 1.7 10-8.9-4.7-8.9 4.7 1.7-10-7.2-7 10-1.4ZM183 93l4.1 8.7 9.2 1.3-6.7 6.5 1.6 9.2-8.2-4.4-8.2 4.4 1.6-9.2-6.7-6.5 9.2-1.3Z');
   const expressions={
       dot:friendlyBrows+leftEye+rightEye+openMouth,
       waving:friendlyBrows+roundEyes+pupil(116,106,8.6,9.2)+pupil(179,108,8.6,9.2)+waveMouth,
@@ -110,7 +112,7 @@
       serious:half+line('M107 91h31m24 1 28-3m-52 49 22-3',4),
       silly:line('M105 94l31 14-27 9',4.4)+rightEye+tongue,
       flirty:lids+pupil(136,112,4,5)+pupil(183,112,4,5)+blush+grin,
-      nervous:roundEyes+pupil(112,105,5,6)+pupil(164,109,4,6)+quiver+sweat,
+      nervous:roundEyes+pupil(114,105,5,6)+pupil(177,109,4,6)+quiver+sweat,
       tired:half+worried+line('M142 141l12 1',3.2)+fill('M137 150q-5 10 1 12 7-1 3-11Z','#8cdcff'),
       irritated:half+brow+line('M131 140q15-7 34 2',3.8),
       disbelief:roundEyes+outlined('M134 131L167 136L161 157L136 155Z',ink,3.4)+line('M106 124v8m7-7v5m69-3 3 5',2.6),
@@ -130,8 +132,8 @@
       cold:pinEyes+teeth+line('M98 89l-5 9m108 0 5 8M96 125l-4 8m108-8 4 9',2.6),
       neutral:leftEye+rightEye+line('M140 138h17',3.5),
       devious:angryEyes+outlined('M132 134q15 9 39-3-7 20-29 17Z',cream,3.5)+line('M150 138v7m9-9v5',2.5),
-      pensive:roundEyes+pupil(137,102,6,8)+pupil(184,105,5,7)+worried+line('M140 141q8-5 17-4',3.4),
-      excited:leftEye+rightEye+glints+openMouth,
+      pensive:roundEyes+pupil(129,102,6,8)+pupil(188,105,5,7)+worried+line('M140 141q8-5 17-4',3.4),
+      excited:starEyes+openMouth,
       triumph:arcs+outlined('M121 132Q153 141 180 125Q176 157 149 158Q131 157 121 132Z','@teeth',3.6)+mouthLine('M128 145q26 4 45-6',3),
       dizzy:spiral+quiver,
       drool:half+oMouth+outlined('M150 148q-6 10-6 16 2 4 6 1 4-4 3-16Z','#8cdcff',1.8),
@@ -139,8 +141,7 @@
       teary:lids+pupil(129,112,4,5)+pupil(176,111,4,5)+tear+grin,
       blank:roundEyes+teeth,
       content:line('M106 109q15 9 28-2m31 4q14 7 26-1',3.8)+blush+mouthLine('M137 135q13 13 27-1',4),
-      sparkle:roundEyes+pupil(121,105,7.4,9.6)+pupil(182,105,6.9,9)+
-        fill('M122 95l2 7 7 2-7 2-2 7-2-7-7-2 7-2Zm60 0 2 7 6 2-6 2-2 7-2-7-6-2 6-2Z','#ffce52')+oMouth,
+      sparkle:roundEyes+gazeStars('M121 93Q124 103 134 105Q124 109 121 120Q117 109 108 105Q117 102 121 93ZM183 95Q186 104 195 108Q185 111 183 120Q179 111 171 108Q179 104 183 95Z')+oMouth,
       smirk:leftEye+outlined('M159 105Q176 101 195 105Q191 122 179 122Q168 122 159 105Z',cream)+pupil(182,112,4,5)+mouthLine('M134 139q17 8 29-7l5 2',4),
       playbite:leftEye+line('M162 110q13-10 26-2',3.7)+outlined('M134 134Q150 139 168 129Q164 150 144 149Z','@teeth',2.5)+mouthLine('M145 138l2 9',2),
       quenched:arcs+smallMouth('M137 132Q150 139 165 131Q166 144 151 146Q139 146 137 132Z','M143 143Q150 139 160 141Q154 148 143 143Z')+
@@ -346,21 +347,17 @@
 
   function drinkingArm(q,paint){
     const [gx,gy]=motion.localPoint(q,...q.cup.grip), reach=q.cup.reach;
-    const x=211+(gx-211)*reach,y=181+(gy-181)*reach;
-    const bent=Math.max(0,Math.min(1,(205-x)/37));
-    const elbowX=217-6*bent,elbowY=187-3*bent;
-    // Only the exposed edge is inked; the shoulder fill overlaps the cap edge.
-    const edge='M'+xy([209,166])+'C'+[ [218,170],[elbowX+2,elbowY-8],[elbowX,elbowY-4] ].map(xy).join(' ')+
-      'C'+[[elbowX-5,elbowY-4],[x+9,y-6],[x+2,y-5.4]].map(xy).join(' ')+
-      'C'+[[x-3,y-5.1],[x-5.4,y-1.8],[x-4.6,y+1.7]].map(xy).join(' ')+
-      'Q'+xy([x-4,y+6.6])+' '+xy([x+2,y+6.1])+
-      'C'+[[x+9,y+5.8],[elbowX-2,elbowY+5],[elbowX,elbowY+3.2]].map(xy).join(' ')+
-      'Q'+xy([elbowX+1,elbowY+1.3])+' 202.1 188.7';
-    const hand='M'+xy([x+5,y-5.3])+'Q'+xy([x-5.5,y-6.1])+' '+xy([x-4.6,y+1.7])+
-      'Q'+xy([x-4,y+6.6])+' '+xy([x+2,y+6.1])+'Q'+xy([x+5,y+5.9])+' '+xy([x+5,y-5.3])+'Z';
-    return fill(edge+'Q207 182 203.5 169.5L209 166Z',paint.arms)+
-      (paint.hands===paint.arms?'':fill(hand,paint.hands))+
-      line(edge,2.55,paint.outline)+line('M'+xy([x+1,y-2.8])+'q3.4-.5 4.5 1.7',1.2,mixColor(paint.hands,paint.outline,.45));
+    const x=214+(gx-214)*reach,y=180+(gy-180)*reach;
+    const mark=(u,v)=>xy([x+u,y+v]);
+    const edge='M208.6 165.2C215 169 218 175 '+mark(6,-5)+
+      'C'+mark(4,-9)+' '+mark(-4,-8)+' '+mark(-6,-3)+
+      'C'+mark(-10,4)+' '+mark(-2,9)+' '+mark(4,7)+
+      'Q216 192 202.1 188.7';
+    // The closing edge sits inside the body color and carries no stroke.
+    return '<g class="drinking-mitt">'+fill(edge+'Q205 177 208.6 165.2Z',paint.arms)+
+      fill('M'+mark(6,-5)+'C'+mark(4,-9)+' '+mark(-4,-8)+' '+mark(-6,-3)+
+        'C'+mark(-10,4)+' '+mark(-2,9)+' '+mark(4,7)+'Q'+mark(7,1)+' '+mark(6,-5)+'Z',paint.hands)+
+      line(edge,2.75,paint.outline)+'</g>';
   }
 
   function glass(c){
@@ -368,7 +365,7 @@
     return '<g class="cup" opacity="'+n(c.alpha)+'" transform="translate('+x+' '+y+') rotate('+n(c.r)+')">'+
       outlined('M-15 -36H15L11 -3Q10 -1 8 -1H-8Q-10 -1-11 -3Z','#c4edfa',2.6)+
       fill('M-12 '+level+'Q0 '+n(level+2)+' 12 '+level+'L10 -4H-10Z','#6ec8e4')+
-      line('M-9 -31L-7 -9',1.4,'#effbff')+line('M-3 -13L2 -51 '+xy(motion.strawTip),3.5,'#c25372')+
+      line('M-9 -31L-7 -9',1.4,'#effbff')+line('M-3 -13L-3 -41Q-4 -44-8 -44L'+xy(motion.strawTip),3.5,'#c25372')+
       line('M-15 -36Q0 -40 15 -36',1.6,ink)+line('M-11 -34Q0 -32 11 -34',1.2,'#80bfcf')+'</g>';
   }
   function boxArt(b){
@@ -389,7 +386,7 @@
         '</g>'
     };
   }
-  function companionProp(q,hand){
+  function companionProp(q,hand,dish){
     if(!q.prop||q.prop.alpha<.02)return '';
     const {kind,alpha,phase}=q.prop;
     if(kind==='highfive'){
@@ -404,6 +401,48 @@
     if(kind==='heart'){
      return '<g opacity="'+n(alpha)+'" transform="translate(150 165)"><path d="M0 18C-10 12-25 3-22-7q4-15 22-3 18-12 22 3C25 3 10 12 0 18Z" fill="#f58da8" stroke="'+ink+'" stroke-width="2.5"/></g>';
     }
+    if(kind==='music'){
+      return '<g opacity="'+n(alpha)+'" transform="translate(0 '+n(-4*Math.sin(phase/330))+')">'+
+        outlined('M221 96V78L237 75V92Q237 98 231 98Q226 98 226 94Q226 90 233 90V81L225 83V98Q225 104 219 104Q214 104 214 100Q214 96 221 96Z','#fac36c',1.8)+
+        line('M69 128q-8-4-11-11m16 5-4-11',2,'#a65b7c')+'</g>';
+    }
+    if(kind==='book'){
+      const turn=Math.sin(phase/240)**4*9;
+      return '<g opacity="'+n(alpha)+'">'+
+        outlined('M106 157Q133 151 149 163Q166 151 193 157L188 192Q168 190 149 200Q131 190 111 193Z','#9581cf',2.4)+
+        outlined('M107 153Q131 148 149 159Q167 148 192 153L186 186Q164 185 149 195Q133 185 113 187Z','#fff1d7',2)+
+        line('M149 159v35M117 161q12-1 24 4m-22 4q12 0 20 4m20-8q11-5 23-4m-22 11q10-4 20-3',1.3,'#ad887a')+
+        (turn>1?outlined('M149 159Q169 '+n(151-turn)+' 187 '+n(150-turn)+'L184 '+n(179-turn)+'Q168 '+n(180-turn)+' 149 194Z','#fff6e5',1.4):'')+'</g>';
+    }
+    if(kind==='cook'){
+      const {stage}=q.prop;
+      const stir=n(6*Math.sin(phase/115)), steam=n(3*Math.sin(phase/310));
+      const stand=outlined('M168 206H244L241 224H233L233 213H177L175 224H168Z','#bf8b69',2.2)+
+        outlined('M168 202H242L250 209Q250 213 244 213H165Q159 213 161 209Z','#f3ce9d',2.2);
+      if(dish==='toast'){
+        const flip=stage==='stir'?n(7*Math.sin(phase/110)):0;
+        return '<g opacity="'+n(alpha)+'">'+stand+
+          outlined(stage==='stir'?'M159 194Q196 185 238 194L229 208H171Z':'M166 196Q202 182 238 196L230 206Q201 217 174 207Z',stage==='stir'?'#766076':'#85bea9',2.4)+
+          (stage==='stir'?line('M235 198l21-8',6,'#766076'):'')+
+          '<g transform="rotate('+flip+' 200 193)">'+
+          outlined('M182 183Q179 177 187 176H215Q224 178 220 184L221 198Q204 205 180 198Z','#d89965',2.2)+
+          fill('M185 183Q184 179 193 180H213Q219 180 216 185L217 195Q201 200 185 195Z','#ffe2a8')+
+          (stage==='prep'?'':fill('M188 186Q192 181 198 185Q207 182 213 186L212 193Q203 197 190 193Z','#c96a91'))+
+          '</g></g>';
+      }
+      return '<g opacity="'+n(alpha)+'">'+stand+
+        (stage==='prep'?outlined('M173 181H230L239 205H163Z','#ecc78e',2)+
+          outlined('M169 174q-1-8 9-8 7 3 4 11Zm22 11 12-12 10 9-8 7Z','#f7a070',1.8)+
+          outlined('M212 191q7-10 18-9-3 11-18 9Z','#9cc48a',1.8):
+         stage==='stir'?outlined('M168 182H232Q231 209 215 210H185Q169 207 168 182Z','#e98973',2.5)+
+          outlined('M167 182Q199 173 234 182Q200 191 167 182Z','#fff0cb',2)+
+          line('M'+xy([hand[0]-3,hand[1]-3])+'L'+n(197+stir)+' 182',4.3,'#9d654f')+
+          line('M'+n(186+stir)+' 183q10 4 19 0m-35 11h-8m67 0h10',2,'#9d564d')+
+          line('M182 172q-7-7 '+steam+'-15m20 14q-7-7 '+steam+'-16m19 17q-6-8 '+steam+'-14',1.9,'#fff1d0'):
+          outlined('M166 198Q202 184 238 198L230 206Q200 216 174 207Z','#85bea9',2.4)+
+          outlined('M180 197Q183 184 193 183Q202 177 212 183Q223 185 223 197Q202 204 180 197Z','#ffce83',2)+
+          line('M186 193l5-2m9 4 7-2m5-6 4 3',2,'#bb7957'))+'</g>';
+    }
     const radius=n(9+6*(1-Math.cos(phase)));
     return '<g opacity="'+n(alpha)+'" transform="translate('+xy([hand[0],hand[1]-20])+')"><circle r="'+radius+'" fill="#bbe4d9" stroke="'+ink+'" stroke-width="2"/><path d="M-4 0h8m-4-4v8" stroke="#3d786d" stroke-width="2" stroke-linecap="round"/></g>';
   }
@@ -413,13 +452,21 @@
     const pivot=at(q.x,q.y)+' translate(150 150) rotate('+n(q.r)+') scale('+n(q.sx)+' '+n(q.sy)+') translate(-150 -150)';
     const accessory=p.accessory??'none';
     const body=bodyArt(paint,q,action);
-    const bed=q.bed>.01?'<g opacity="'+n(q.bed)+'">'+
-      outlined('M77 204Q175 199 269 204Q283 205 285 215Q286 225 274 228H79Q64 227 64 217Q64 208 77 204Z','#e1b6c9',2.8)+
-      line('M69 218Q174 225 280 217',1.8,'#9f718f')+
-      outlined('M211 201Q216 194 233 194L260 195Q277 194 281 204Q285 213 270 215L226 215Q210 215 211 201Z','#f6e4cf',2.6)+
-      line('M266 200Q277 202 276 207M217 206Q222 209 231 209',1.55,'#c8a9a1')+'</g>':'';
+    const bed=q.bed>.01?'<g class="sleep-mattress" opacity="'+n(q.bed)+'">'+
+      outlined('M70 91Q72 78 88 75Q148 67 213 75Q228 77 230 91L259 207Q264 230 242 232H58Q39 230 43 208Z','#ad8198',2.8)+
+      outlined('M72 85Q76 76 89 74Q149 67 212 74Q225 76 228 85L256 206Q260 219 241 220H60Q41 219 46 206Z','#edc6cf',2.6)+
+      outlined('M79 87Q82 79 94 80Q151 76 208 81Q219 82 221 91L228 118Q229 128 216 128Q149 121 81 129Q69 129 72 118Z','#fff0db',2.4)+
+      line('M81 113q-2 8 7 8m131-8q2 7-5 8M47 217q2 7 15 7h175q14 0 18-7',1.65,'#a97890')+'</g>':'';
+    const breath=reduced?0:1.25*Math.sin(ms/510);
+    const quiltY=203-37*q.lie+breath*q.lie;
+    const quilt=q.lie>.12?'<g class="sleep-quilt" opacity="'+n(Math.min(1,(q.lie-.12)*2.1))+'" transform="'+at(0,quiltY-166)+'">'+
+      outlined('M84 166Q148 153 218 166Q235 175 246 202Q250 212 237 216Q160 227 65 215Q51 212 55 200Q62 178 84 166Z','#c7b7ee',2.65)+
+      fill('M65 194Q150 185 237 194L246 204Q249 212 236 215Q155 226 65 214Q55 212 55 202Z','#b8a3de')+
+      line('M60 202Q152 216 241 202m-141-19-8 20m58-26v27m47-21 13 21',1.4,'#a28bc8')+
+      outlined('M79 167Q147 154 221 166L226 174Q148 165 75 176Z','#f4d3df',1.85)+
+      fill('M122 185l2 4 4 1-4 2-1 4-2-4-4-1 4-2Zm56 5 2 5 5 1-5 2-1 5-2-5-5-1 5-2Z','#fbe8c4')+'</g>':'';
     const stars=q.star>.01?'<g opacity="'+n(q.star)+'" fill="#fdd075"><path d="M88 66l3 8 8 3-8 3-3 8-3-8-8-3 8-3Zm129-11 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/></g>':'';
-    const zzz=action==='sleep'&&ms>=motion.duration.sleep*.84?'<g transform="'+at(11,reduced?-4:-4+n(2.5*Math.cos((ms-motion.duration.sleep)*Math.PI/600)))+'" fill="#fff1c9" stroke="'+ink+'" stroke-width="1.5"><path d="M225 80h16v4l-9 9h10v5h-17v-5l9-8h-9Zm17-20h18v4l-10 10h11v5h-19v-5l10-9h-10Z"/></g>':'';
+    const zzz=action==='sleep'&&q.lie>.93?'<g transform="'+at(11,reduced?-4:-4+n(2.5*Math.cos((ms-motion.duration.sleep)*Math.PI/600)))+'" fill="#fff1c9" stroke="'+ink+'" stroke-width="1.5"><path d="M225 80h16v4l-9 9h10v5h-17v-5l9-8h-9Zm17-20h18v4l-10 10h11v5h-19v-5l10-9h-10Z"/></g>':'';
     const cap='<g class="head" transform="'+pivot+'">';
     const tears=q.smile==='cry'&&action==='tears'?'<g transform="'+at(0,q.tear*28)+'" opacity="'+n(1-q.tear*.85)+'">'+
       outlined('M111 115q-13 13-6 19 8 5 12-3 1-5-6-16ZM186 117q11 11 8 17-4 7-11 2-5-4 3-19Z',paint.tears,2.5,paint.outline)+'</g>':'';
@@ -440,8 +487,8 @@
      (box?box.back:'')+
      (q.box?.hidden?'':clip?'<defs><clipPath id="'+clipId+'"><rect width="300" height="'+motion.peekBox.top+'"/></clipPath></defs>'+
        '<g clip-path="url(#'+clipId+')" data-clip-bottom="'+motion.peekBox.top+'">'+pet+'</g>':pet)+
-     (box?box.front:'')+
-     companionProp(q,motion.headPoint(q,...body.right))+stars+zzz+
+     (box?box.front:'')+quilt+
+     companionProp(q,motion.headPoint(q,...body.right),p.dish)+stars+zzz+
      (drinking?glass(q.cup)+'<g class="drinking-arm" transform="'+pivot+'">'+drinkingArm(q,paint)+'</g>':'')+'</svg>';
   }
   const api={make,esc,character,colors,faces,kits,colorParts,isHex,cleanPalette,partColors,expression,keyLegend,keyLabels,legend};

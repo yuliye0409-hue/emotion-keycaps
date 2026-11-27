@@ -9,15 +9,21 @@
   <link rel="stylesheet" href="./style.css">
   <script defer src="./motion.js"></script>
   <script defer src="./art.js"></script>
+  <script defer src="./home.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
   <header><div class="brand"><span aria-hidden="true">✿</span><b>情绪键帽</b><small>KEYCAP CLUB</small></div><div class="header-tools"><button id="sound-toggle" class="sound" type="button" aria-pressed="false" aria-label="互动音效" title="互动音效"></button><div class="desktop-control"><button id="desktop" class="desktop" type="button">放到桌面 <span aria-hidden="true">↗</span></button><div id="desktop-notice" hidden><span id="desktop-status" role="status"></span><a id="desktop-help" href="https://github.com/yuliye0409-hue/emotion-keycaps#%E6%9C%AC%E6%9C%BA%E9%A2%84%E8%A7%88" target="_blank" rel="noopener" hidden>查看启动步骤 ↗</a></div></div></div></header>
   <main>
     <section class="home" aria-labelledby="room">
-      <div class="room-label"><div><h1 id="room"></h1></div><div class="room-pet"><strong id="pet-name"></strong></div></div>
+      <div class="room-label"><h1 id="room">咔粒的家</h1><div class="room-pet"><span id="current-room" hidden></span><strong id="pet-name"></strong></div></div>
+      <nav id="home-rooms" class="home-rooms" aria-label="咔粒的家"></nav>
       <div class="world" id="world"></div>
       <div class="under"><p id="message" role="status"></p><div id="actions" class="actions" aria-label="和桌宠互动"></div></div>
+      <div id="kitchen-actions" class="kitchen-actions" role="group" aria-label="厨房点餐" hidden>
+        <button type="button" data-dish="toast">做果酱吐司</button>
+        <button type="button" id="taste" hidden>尝一口</button>
+      </div>
       <div class="office-actions" role="group" aria-label="陪伴互动">
         <button type="button" data-action="hug">抱一下</button>
         <button type="button" data-action="calm">一起缓缓</button>
